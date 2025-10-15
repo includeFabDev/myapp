@@ -134,13 +134,7 @@ class HomeScreenState extends State<HomeScreen> {
         selectedItemColor: Theme.of(context).colorScheme.primary,
         onTap: _onItemTapped,
       ),
-      floatingActionButton: _selectedIndex == 0
-          ? FloatingActionButton(
-              onPressed: _showAddActivityDialog,
-              tooltip: 'Crear Actividad',
-              child: const Icon(Icons.add),
-            )
-          : null,
+
     );
   }
 }

@@ -1,0 +1,1 @@
+- [x] Edit lib/screens/bienvenida_screen.dart to add FloatingActionButton and _showAddActivityDialog method

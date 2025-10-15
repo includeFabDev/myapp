@@ -124,6 +124,11 @@ class ReportesScreenState extends State<ReportesScreen> {
             _buildFinancialRow(context, 'Inversión Total:', currencyFormat.format(inversion), Icons.arrow_downward, Colors.orange),
             const Divider(height: 25, thickness: 1.5),
             _buildFinancialRow(context, 'Ganancia Neta:', currencyFormat.format(ganancia), Icons.attach_money, gananciaColor, isTotal: true),
+            const SizedBox(height: 10),
+            Text(
+              'Ganancia Neta = Ingresos - Inversión',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+            ),
           ],
         ),
       ),

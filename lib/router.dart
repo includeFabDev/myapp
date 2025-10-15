@@ -18,24 +18,22 @@ final GoRouter router = GoRouter(
             if (actividad == null) return const HomeScreen();
             return ActivityDetailsScreen(actividad: actividad);
           },
-          routes: [
-            GoRoute(
-              path: 'inversiones',
-              builder: (context, state) {
-                 final actividad = state.extra as Actividad?;
-                 if (actividad == null) return const HomeScreen();
-                return InversionesScreen(actividad: actividad);
-              },
-            ),
-            GoRoute(
-              path: 'reportes',
-              builder: (context, state) {
-                 final actividad = state.extra as Actividad?;
-                 if (actividad == null) return const HomeScreen();
-                return ReportesScreen(actividad: actividad);
-              },
-            ),
-          ],
+        ),
+        GoRoute(
+          path: 'inversiones/:id',
+          builder: (context, state) {
+            final actividad = state.extra as Actividad?;
+            if (actividad == null) return const HomeScreen();
+            return InversionesScreen(actividad: actividad);
+          },
+        ),
+        GoRoute(
+          path: 'reportes/:id',
+          builder: (context, state) {
+            final actividad = state.extra as Actividad?;
+            if (actividad == null) return const HomeScreen();
+            return ReportesScreen(actividad: actividad);
+          },
         ),
       ],
     ),
