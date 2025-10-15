@@ -4,6 +4,7 @@ import 'package:myapp/models/actividad.dart';
 import 'package:myapp/screens/bienvenida_screen.dart';
 import 'package:myapp/screens/caja_screen.dart';
 import 'package:myapp/services/firebase_service.dart';
+import 'package:myapp/widgets/app_drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,7 +23,7 @@ class HomeScreenState extends State<HomeScreen> {
   ];
 
   static const List<String> _titles = <String>[
-    'Actividades de Choripanes',
+    'Actividades Economicas',
     'Control de Caja',
   ];
 
@@ -113,6 +114,7 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: AppDrawer(),
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
       ),

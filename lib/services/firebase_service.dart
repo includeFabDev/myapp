@@ -249,4 +249,122 @@ class FirebaseService {
       transaction.set(saldoRef, {'saldoTotal': nuevoSaldo}, SetOptions(merge: true));
     });
   }
+
+  Future<void> updateMovimientoCaja({
+    required String movimientoId,
+    required String tipo,
+    required double monto,
+    required String descripcion,
+    required DateTime fecha,
+    String? relacionActividad,
+  }) {
+    final movimientoRef = _db.collection('movimientos_caja').doc(movimientoId);
+    final saldoRef = _db.collection('caja_resumen').doc('saldo_actual');
+
+    return _db.runTransaction((transaction) async {
+      // Obtener el movimiento actual
+      final movimientoSnapshot = await transaction.get(movimientoRef);
+      if (!movimientoSnapshot.exists) {
+        throw Exception('Movimiento no encontrado');
+      }
+
+      final movimientoActual = MovimientoCaja.fromFirestore(movimientoSnapshot);
+
+      // Obtener el saldo actual
+      final saldoSnapshot = await transaction.get(saldoRef);
+      double saldoActual = 0.0;
+      if (saldoSnapshot.exists && saldoSnapshot.data() != null) {
+        final data = saldoSnapshot.data() as Map<String, dynamic>;
+        saldoActual = (data['saldoTotal'] ?? 0.0).toDouble();
+      }
+
+      // Revertir el efecto del movimiento anterior
+      double saldoRevertido;
+      if (movimientoActual.tipo == 'ingreso') {
+        saldoRevertido = saldoActual - movimientoActual.monto;
+      } else {
+        saldoRevertido = saldoActual + movimientoActual.monto;
+      }
+
+      // Aplicar el nuevo movimiento
+      double nuevoSaldo;
+      if (tipo == 'ingreso') {
+        nuevoSaldo = saldoRevertido + monto;
+      } else {
+        nuevoSaldo = saldoRevertido - monto;
+      }
+
+      // Actualizar el movimiento
+      final movimientoActualizado = MovimientoCaja(
+        id: movimientoId,
+        tipo: tipo,
+        monto: monto,
+        descripcion: descripcion,
+        fecha: fecha,
+        relacionActividad: relacionActividad,
+        saldoResultante: nuevoSaldo,
+      );
+
+      transaction.update(movimientoRef, movimientoActualizado.toFirestore());
+      transaction.set(saldoRef, {'saldoTotal': nuevoSaldo}, SetOptions(merge: true));
+    });
+  }
+
+  Future<void> deleteMovimientoCaja(String movimientoId) {
+    final movimientoRef = _db.collection('movimientos_caja').doc(movimientoId);
+    final saldoRef = _db.collection('caja_resumen').doc('saldo_actual');
+
+    return _db.runTransaction((transaction) async {
+      // Obtener el movimiento a eliminar
+      final movimientoSnapshot = await transaction.get(movimientoRef);
+      if (!movimientoSnapshot.exists) {
+        throw Exception('Movimiento no encontrado');
+      }
+
+      final movimiento = MovimientoCaja.fromFirestore(movimientoSnapshot);
+
+      // Obtener el saldo actual
+      final saldoSnapshot = await transaction.get(saldoRef);
+      double saldoActual = 0.0;
+      if (saldoSnapshot.exists && saldoSnapshot.data() != null) {
+        final data = saldoSnapshot.data() as Map<String, dynamic>;
+        saldoActual = (data['saldoTotal'] ?? 0.0).toDouble();
+      }
+
+      // Revertir el efecto del movimiento
+      double nuevoSaldo;
+      if (movimiento.tipo == 'ingreso') {
+        nuevoSaldo = saldoActual - movimiento.monto;
+      } else {
+        nuevoSaldo = saldoActual + movimiento.monto;
+      }
+
+      transaction.delete(movimientoRef);
+      transaction.set(saldoRef, {'saldoTotal': nuevoSaldo}, SetOptions(merge: true));
+    });
+  }
+
+  // MÉTODOS PARA PARTICIPANTES ÚNICOS CON VENTAS
+  //----------------------------------------------------------------
+
+  Stream<List<Map<String, dynamic>>> getParticipantesUnicos() {
+    return _db.collectionGroup('ventas').snapshots().map((snapshot) {
+      final Set<String> idsUnicos = {};
+      final List<Map<String, dynamic>> participantes = [];
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final participanteId = data['participanteId'] as String?;
+        if (participanteId != null && !idsUnicos.contains(participanteId)) {
+          idsUnicos.add(participanteId);
+          participantes.add({
+            'id': participanteId,
+            'nombre': data['participanteNombre'] ?? 'Sin nombre',
+          });
+        }
+      }
+
+      return participantes;
+    });
+  }
 }
