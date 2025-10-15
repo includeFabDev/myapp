@@ -76,7 +76,7 @@ class _BienvenidaScreenState extends State<BienvenidaScreen> {
                     nombre: nombreController.text,
                     descripcion: descripcionController.text,
                     fecha: fechaSeleccionada ?? DateTime.now(),
-                    precioChoripan: double.tryParse(precioController.text) ?? 0.0,
+                    precioChoripan: double.tryParse(precioController.text) ?? 0.0, id: '',
                   );
                   _firebaseService.addActividad(nuevaActividad);
                   Navigator.pop(context, true);

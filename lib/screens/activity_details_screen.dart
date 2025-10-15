@@ -1,174 +1,237 @@
 import 'package:flutter/material.dart';
 import 'package:myapp/models/actividad.dart';
 import 'package:myapp/models/participante.dart';
-import 'package:myapp/models/venta.dart';
+import 'package:myapp/screens/reportes_screen.dart';
 import 'package:myapp/services/firebase_service.dart';
+import 'package:intl/intl.dart';
 
 class ActivityDetailsScreen extends StatefulWidget {
-  final Participante participante;
   final Actividad actividad;
 
   const ActivityDetailsScreen({
     super.key,
-    required this.participante,
     required this.actividad,
   });
 
   @override
-  _ActivityDetailsScreenState createState() => _ActivityDetailsScreenState();
+  State<ActivityDetailsScreen> createState() => _ActivityDetailsScreenState();
 }
 
 class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
   final FirebaseService _firebaseService = FirebaseService();
 
-  void _showAddVentaDialog() {
-    final cantidadController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Registrar Venta'),
-        content: TextField(
-          controller: cantidadController,
-          decoration: const InputDecoration(labelText: 'Cantidad vendida'),
-          keyboardType: TextInputType.number,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () {
-              final cantidad = int.tryParse(cantidadController.text);
-              if (cantidad != null && cantidad > 0) {
-                final venta = Venta(
-                  participanteId: widget.participante.id!,
-                  cantidad: cantidad,
-                  fecha: DateTime.now(),
-                );
-                // Llama al método corregido en el servicio
-                _firebaseService.addVenta(venta, widget.participante);
-
-                // Actualiza el estado local para reflejar el cambio al instante
-                setState(() {
-                  widget.participante.llevo += cantidad;
-                });
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Añadir'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddPagoDialog() {
-    final montoController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Registrar Pago'),
-        content: TextField(
-          controller: montoController,
-          decoration: const InputDecoration(labelText: 'Monto pagado'),
-          keyboardType: TextInputType.number,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () {
-              final monto = double.tryParse(montoController.text);
-              if (monto != null && monto > 0) {
-                // Llama al método corregido en el servicio
-                _firebaseService.addPago(widget.participante, monto);
-
-                // Actualiza el estado local para reflejar el cambio al instante
-                setState(() {
-                  widget.participante.pagos += monto;
-                });
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Registrar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Recalcula la deuda y el progreso en cada build para tener datos actualizados
-    final double deuda = widget.participante.calcularDeuda(widget.actividad.precioChoripan);
-    final double progreso = widget.participante.meta > 0 ? widget.participante.llevo / widget.participante.meta : 0;
+    final currencyFormat = NumberFormat.currency(locale: 'es_BO', symbol: 'Bs.', decimalDigits: 2);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.participante.nombre),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Meta de venta: ${widget.participante.meta}', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 10),
-            Text('Choripanes vendidos: ${widget.participante.llevo}', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 10),
-            LinearProgressIndicator(value: progreso, minHeight: 10),
-            const SizedBox(height: 20),
-            Text('Total recaudado: \$${widget.participante.llevo * widget.actividad.precioChoripan}', style: Theme.of(context).textTheme.titleMedium),
-            Text('Total pagado: \$${widget.participante.pagos.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 20),
-            Text(
-              'Deuda actual: \$${deuda.toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: deuda > 0 ? Colors.red : Colors.green,
-                  ),
-            ),
-            const SizedBox(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.add_shopping_cart),
-                  label: const Text('Venta'),
-                  onPressed: _showAddVentaDialog,
-                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+        title: Text(widget.actividad.nombre),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            tooltip: 'Ver Reportes',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ReportesScreen(actividad: widget.actividad),
                 ),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.attach_money),
-                  label: const Text('Pago'),
-                  onPressed: _showAddPagoDialog,
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_add_alt_1),
+            tooltip: 'Añadir Participante',
+            onPressed: () => _mostrarDialogoNuevoParticipante(context),
+          ),
+        ],
+      ),
+      body: StreamBuilder<List<Participante>>(
+        stream: _firebaseService.getParticipantes(widget.actividad.id),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(
+              child: Text(
+                'No hay participantes todavía.\nToca el botón + para añadir uno.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+            );
+          }
+
+          final participantes = snapshot.data!;
+          return ListView.builder(
+            itemCount: participantes.length,
+            itemBuilder: (context, index) {
+              final participante = participantes[index];
+              final deuda = (participante.llevo * widget.actividad.precioChoripan) - participante.pagos;
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    child: Text(participante.nombre.substring(0, 1).toUpperCase()),
+                  ),
+                  title: Text(participante.nombre, style: const TextStyle(fontWeight: FontWeight.w500)),
+                  subtitle: Text(
+                    'Vendido: ${participante.llevo}',
+                  ),
+                  trailing: Text(
+                    'Deuda: ${currencyFormat.format(deuda)}',
+                    style: TextStyle(
+                      color: deuda > 0.1 ? Colors.red : Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onTap: () => _mostrarDialogoEditarVentas(context, participante),
+                  onLongPress: () => _confirmDeleteParticipante(context, participante),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  void _mostrarDialogoNuevoParticipante(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
+    String nombre = '';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Nuevo Participante'),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              decoration: const InputDecoration(labelText: 'Nombre'),
+              validator: (value) => value == null || value.isEmpty ? 'Ingresa un nombre' : null,
+              onSaved: (value) => nombre = value!,
+              textCapitalization: TextCapitalization.words,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  formKey.currentState!.save();
+                  final nuevoParticipante = Participante(nombre: nombre);
+                  _firebaseService.addParticipante(widget.actividad.id, nuevoParticipante);
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _mostrarDialogoEditarVentas(BuildContext context, Participante participante) {
+    final formKey = GlobalKey<FormState>();
+    int llevo = participante.llevo;
+    double pagoEfectivo = participante.pagoEfectivo;
+    double pagoQr = participante.pagoQr;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Registrar para ${participante.nombre}'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  initialValue: llevo.toString(),
+                  decoration: const InputDecoration(labelText: 'Cantidad Vendida', prefixIcon: Icon(Icons.shopping_cart)),
+                  keyboardType: TextInputType.number,
+                  onSaved: (value) => llevo = int.tryParse(value ?? '0') ?? 0,
+                ),
+                TextFormField(
+                  initialValue: pagoEfectivo.toString(),
+                  decoration: const InputDecoration(labelText: 'Pago en Efectivo', prefixText: 'Bs.', prefixIcon: Icon(Icons.money)),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onSaved: (value) => pagoEfectivo = double.tryParse(value ?? '0') ?? 0,
+                ),
+                 TextFormField(
+                  initialValue: pagoQr.toString(),
+                  decoration: const InputDecoration(labelText: 'Pago con QR', prefixText: 'Bs.', prefixIcon: Icon(Icons.qr_code)),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onSaved: (value) => pagoQr = double.tryParse(value ?? '0') ?? 0,
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            const Text('Historial de Ventas', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-             Expanded(
-              child: StreamBuilder<List<Venta>>(
-                stream: _firebaseService.getVentas(widget.participante.id!),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                  final ventas = snapshot.data!;
-                  if (ventas.isEmpty) {
-                    return const Center(child: Text('Aún no hay ventas registradas.'));
-                  }
-                  return ListView.builder(
-                    itemCount: ventas.length,
-                    itemBuilder: (context, index) {
-                      final venta = ventas[index];
-                      return ListTile(
-                        title: Text('Vendió ${venta.cantidad} choripanes'),
-                        subtitle: Text(venta.fecha.toLocal().toString()),
-                      );
-                    },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  formKey.currentState!.save();
+                  final participanteActualizado = participante.copyWith(
+                    llevo: llevo,
+                    pagoEfectivo: pagoEfectivo,
+                    pagoQr: pagoQr,
                   );
-                },
-              ),
+                  _firebaseService.updateParticipante(
+                    widget.actividad.id,
+                    participanteActualizado,
+                  );
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Actualizar'),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
+  }
+
+  void _confirmDeleteParticipante(BuildContext context, Participante participante) {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Confirmar Eliminación'),
+            content: Text('¿Estás seguro de que deseas eliminar a ${participante.nombre}?\nEsta acción no se puede deshacer.'),
+            actions: <Widget>[
+              TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.of(context).pop()),
+              ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: const Text('Eliminar'),
+                  onPressed: () {
+                     // ¡CORREGIDO! La llamada a la función ya está activa.
+                     if (participante.id != null) {
+                       _firebaseService.deleteParticipante(widget.actividad.id, participante.id!);
+                     }
+                     Navigator.of(context).pop();
+                     ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Participante eliminado'), 
+                          backgroundColor: Colors.green,
+                        )
+                     );
+                  }
+              ),
+            ],
+          );
+        });
   }
 }

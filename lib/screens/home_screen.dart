@@ -1,62 +1,48 @@
+
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:myapp/models/participante.dart';
-import 'package:myapp/services/firebase_service.dart';
+import 'package:intl/intl.dart';
 import 'package:myapp/models/actividad.dart';
+import 'package:myapp/screens/activity_details_screen.dart';
+import 'package:myapp/screens/inversiones_screen.dart'; // Importa la nueva pantalla
+import 'package:myapp/services/auth_service.dart';
+import 'package:myapp/services/firebase_service.dart';
 
 class HomeScreen extends StatefulWidget {
-  final Actividad actividad;
-
-  const HomeScreen({super.key, required this.actividad});
+  const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   final FirebaseService _firebaseService = FirebaseService();
+  final AuthService _authService = AuthService();
 
-  void _showAddParticipanteDialog() {
-    final nombreController = TextEditingController();
-    final metaController = TextEditingController();
-
-    showDialog(
+  Future<void> _showLogoutConfirmationDialog() async {
+    return showDialog<void>(
       context: context,
-      builder: (context) {
+      barrierDismissible: false,
+      builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Añadir Participante'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nombreController,
-                decoration: const InputDecoration(labelText: 'Nombre'),
-              ),
-              TextField(
-                controller: metaController,
-                decoration: const InputDecoration(labelText: 'Meta de venta'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
+          title: const Text('Confirmar Cierre de Sesión'),
+          content: const SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('¿Estás seguro de que quieres cerrar la sesión?'),
+              ],
             ),
-            ElevatedButton(
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Cerrar Sesión'),
               onPressed: () {
-                if (nombreController.text.isNotEmpty) {
-                  final nuevoParticipante = Participante(
-                    nombre: nombreController.text,
-                    actividadId: widget.actividad.id!,
-                    meta: int.tryParse(metaController.text) ?? 0,
-                  );
-                  _firebaseService.addParticipante(nuevoParticipante);
-                  Navigator.pop(context);
-                }
+                Navigator.of(context).pop();
+                _logout();
               },
-              child: const Text('Añadir'),
             ),
           ],
         );
@@ -64,73 +50,90 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _logout() async {
+    await _authService.signOut();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.actividad.nombre),
+        title: const Text('Mis Actividades'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.assessment),
-            onPressed: () {
-              context.push('/reportes/${widget.actividad.id}', extra: widget.actividad);
-            },
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar Sesión',
+            onPressed: _showLogoutConfirmationDialog,
           ),
         ],
       ),
-      body: StreamBuilder<List<Participante>>(
-        stream: _firebaseService.getParticipantes().map(
-              (participantes) => participantes
-                  .where((p) => p.actividadId == widget.actividad.id)
-                  .toList(),
-            ),
+      body: StreamBuilder<List<Actividad>>(
+        stream: _firebaseService.getActividades(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No hay participantes. Añade uno para comenzar.'));
+            return const Center(
+              child: Text(
+                'Aún no has creado ninguna actividad.\n¡Toca el botón + para empezar!',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+            );
           }
-
-          final participantes = snapshot.data!;
-
+          final actividades = snapshot.data!;
           return ListView.builder(
-            itemCount: participantes.length,
+            padding: const EdgeInsets.all(8.0),
+            itemCount: actividades.length,
             itemBuilder: (context, index) {
-              final participante = participantes[index];
-              final double deuda = participante.calcularDeuda(widget.actividad.precioChoripan);
-
+              final actividad = actividades[index];
               return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                child: ListTile(
-                  title: Text(participante.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Column(
+                elevation: 4,
+                margin: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Meta: ${participante.meta} / Llevo: ${participante.llevo}'),
-                      const SizedBox(height: 5),
-                      LinearProgressIndicator(
-                        value: participante.meta > 0 ? participante.llevo / participante.meta : 0,
-                        backgroundColor: Colors.grey[300],
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          (participante.llevo / participante.meta) >= 1 ? Colors.green : Colors.blue,
-                        ),
+                      Text(
+                        actividad.nombre,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                       ),
+                      const SizedBox(height: 8),
+                      Text('Creada: ${DateFormat.yMd().add_jm().format(actividad.fecha)}'),
+                      const Divider(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          TextButton.icon(
+                            icon: const Icon(Icons.people, color: Colors.deepPurple),
+                            label: const Text('Participantes'),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ActivityDetailsScreen(actividad: actividad),
+                                ),
+                              );
+                            },
+                          ),
+                          TextButton.icon(
+                            icon: const Icon(Icons.trending_up, color: Colors.green),
+                            label: const Text('Inversiones'), // Nuevo botón
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => InversionesScreen(actividad: actividad),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      )
                     ],
                   ),
-                  trailing: Text(
-                    'Debe: \$${deuda.toStringAsFixed(2)}',
-                    style: TextStyle(color: deuda > 0 ? Colors.red : Colors.green, fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () {
-                    context.push(
-                      '/participante/${participante.id}',
-                       extra: {'participante': participante, 'actividad': widget.actividad},
-                    );
-                  },
                 ),
               );
             },
@@ -138,10 +141,73 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddParticipanteDialog,
-        tooltip: 'Añadir Participante',
-        child: const Icon(Icons.person_add),
+        onPressed: () => _mostrarDialogoCrearActividad(context),
+        tooltip: 'Nueva Actividad',
+        child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  void _mostrarDialogoCrearActividad(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
+    String nombre = '';
+    double? precio;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Nueva Actividad'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'Nombre de la actividad'),
+                  validator: (value) => value == null || value.isEmpty ? 'Ingresa un nombre' : null,
+                  onSaved: (value) => nombre = value!,
+                ),
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'Precio Unitario (₲)'),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Ingresa un precio';
+                    if (double.tryParse(value) == null) return 'Ingresa un número válido';
+                    return null;
+                  },
+                  onSaved: (value) => precio = double.parse(value!),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  formKey.currentState!.save();
+                  final nuevaActividad = Actividad(
+                    nombre: nombre,
+                    fecha: DateTime.now(),
+                    precioChoripan: precio!,
+                    descripcion: '', id: '',
+                  );
+                  _firebaseService.addActividad(nuevaActividad);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('¡Actividad creada con éxito!')),
+                  );
+                }
+              },
+              child: const Text('Crear'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
