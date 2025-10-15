@@ -1,213 +1,146 @@
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/models/actividad.dart';
-import 'package:myapp/screens/activity_details_screen.dart';
-import 'package:myapp/screens/inversiones_screen.dart'; // Importa la nueva pantalla
-import 'package:myapp/services/auth_service.dart';
+import 'package:myapp/screens/bienvenida_screen.dart';
+import 'package:myapp/screens/caja_screen.dart';
 import 'package:myapp/services/firebase_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  HomeScreenState createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   final FirebaseService _firebaseService = FirebaseService();
-  final AuthService _authService = AuthService();
+  int _selectedIndex = 0;
 
-  Future<void> _showLogoutConfirmationDialog() async {
-    return showDialog<void>(
+  static const List<Widget> _widgetOptions = <Widget>[
+    BienvenidaScreen(),
+    CajaScreen(),
+  ];
+
+  static const List<String> _titles = <String>[
+    'Actividades de Choripanes',
+    'Control de Caja',
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  void _showAddActivityDialog() async {
+    final nombreController = TextEditingController();
+    final descripcionController = TextEditingController();
+    final precioController = TextEditingController();
+    DateTime? fechaSeleccionada = DateTime.now();
+
+    await showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
+      builder: (context) {
         return AlertDialog(
-          title: const Text('Confirmar Cierre de Sesión'),
-          content: const SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('¿Estás seguro de que quieres cerrar la sesión?'),
+          title: const Text("Crear Nueva Actividad"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nombreController,
+                  decoration: const InputDecoration(labelText: "Nombre de la Actividad"),
+                ),
+                TextField(
+                  controller: descripcionController,
+                  decoration: const InputDecoration(labelText: "Descripción"),
+                ),
+                TextField(
+                  controller: precioController,
+                  decoration: const InputDecoration(labelText: "Precio por Choripán"),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () async {
+                    final DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: fechaSeleccionada ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        fechaSeleccionada = picked;
+                      });
+                    }
+                  },
+                  child: Text(
+                    'Fecha: ${DateFormat('yMd').format(fechaSeleccionada ?? DateTime.now())}',
+                  ),
+                ),
               ],
             ),
           ),
-          actions: <Widget>[
+          actions: [
             TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancelar"),
             ),
-            TextButton(
-              child: const Text('Cerrar Sesión'),
+            ElevatedButton(
               onPressed: () {
-                Navigator.of(context).pop();
-                _logout();
+                if (nombreController.text.isNotEmpty &&
+                    precioController.text.isNotEmpty) {
+                  final nuevaActividad = Actividad(
+                    nombre: nombreController.text,
+                    descripcion: descripcionController.text,
+                    fecha: fechaSeleccionada ?? DateTime.now(),
+                    precioChoripan: double.tryParse(precioController.text) ?? 0.0,
+                    id: '',
+                  );
+                  _firebaseService.addActividad(nuevaActividad);
+                  Navigator.pop(context);
+                }
               },
+              child: const Text("Crear"),
             ),
           ],
         );
       },
     );
-  }
-
-  Future<void> _logout() async {
-    await _authService.signOut();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mis Actividades'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Cerrar Sesión',
-            onPressed: _showLogoutConfirmationDialog,
+        title: Text(_titles[_selectedIndex]),
+      ),
+      body: Center(
+        child: _widgetOptions.elementAt(_selectedIndex),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event),
+            label: 'Actividades',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance_wallet),
+            label: 'Caja',
           ),
         ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        onTap: _onItemTapped,
       ),
-      body: StreamBuilder<List<Actividad>>(
-        stream: _firebaseService.getActividades(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text(
-                'Aún no has creado ninguna actividad.\n¡Toca el botón + para empezar!',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-            );
-          }
-          final actividades = snapshot.data!;
-          return ListView.builder(
-            padding: const EdgeInsets.all(8.0),
-            itemCount: actividades.length,
-            itemBuilder: (context, index) {
-              final actividad = actividades[index];
-              return Card(
-                elevation: 4,
-                margin: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        actividad.nombre,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                      ),
-                      const SizedBox(height: 8),
-                      Text('Creada: ${DateFormat.yMd().add_jm().format(actividad.fecha)}'),
-                      const Divider(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          TextButton.icon(
-                            icon: const Icon(Icons.people, color: Colors.deepPurple),
-                            label: const Text('Participantes'),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ActivityDetailsScreen(actividad: actividad),
-                                ),
-                              );
-                            },
-                          ),
-                          TextButton.icon(
-                            icon: const Icon(Icons.trending_up, color: Colors.green),
-                            label: const Text('Inversiones'), // Nuevo botón
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => InversionesScreen(actividad: actividad),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _mostrarDialogoCrearActividad(context),
-        tooltip: 'Nueva Actividad',
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  void _mostrarDialogoCrearActividad(BuildContext context) {
-    final formKey = GlobalKey<FormState>();
-    String nombre = '';
-    double? precio;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Nueva Actividad'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Nombre de la actividad'),
-                  validator: (value) => value == null || value.isEmpty ? 'Ingresa un nombre' : null,
-                  onSaved: (value) => nombre = value!,
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Precio Unitario (₲)'),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Ingresa un precio';
-                    if (double.tryParse(value) == null) return 'Ingresa un número válido';
-                    return null;
-                  },
-                  onSaved: (value) => precio = double.parse(value!),
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.pop(context),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  formKey.currentState!.save();
-                  final nuevaActividad = Actividad(
-                    nombre: nombre,
-                    fecha: DateTime.now(),
-                    precioChoripan: precio!,
-                    descripcion: '', id: '',
-                  );
-                  _firebaseService.addActividad(nuevaActividad);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('¡Actividad creada con éxito!')),
-                  );
-                }
-              },
-              child: const Text('Crear'),
-            ),
-          ],
-        );
-      },
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton(
+              onPressed: _showAddActivityDialog,
+              tooltip: 'Crear Actividad',
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }

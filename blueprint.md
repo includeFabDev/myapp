@@ -43,7 +43,28 @@ La aplicación utiliza Firebase (Cloud Firestore) como backend, lo que permite l
     4.  Se mejoró el modelo `Participante` con un getter `pagos` para simplificar el código.
     5.  Se corrigieron errores y se aseguró la funcionalidad de eliminación de participantes.
 
-### Paso 2: Implementar un Sistema de Autenticación Real
+### ⏳ **Paso 2: Implementar Módulo de "Control de Caja" (En Progreso)**
+
+**Objetivo**: Crear un sistema de contabilidad general para registrar todos los ingresos y egresos del grupo, llevando un saldo total y un historial de movimientos.
+
+-   **Plan**:
+    1.  **Modelo de Datos (`movimiento_caja.dart`)**:
+        -   Crear el modelo `MovimientoCaja` con los campos: `id`, `tipo` ('ingreso' | 'egreso'), `monto`, `descripcion`, `fecha`, `relacion_actividad` (opcional), y `saldo_resultante`.
+    2.  **Servicios de Firebase (`firebase_service.dart`)**:
+        -   Implementar el método `addMovimientoCaja` que, de forma transaccional, obtenga el último saldo, calcule el nuevo `saldo_resultante` y guarde el movimiento.
+        -   Crear `getMovimientosCajaStream` para obtener un `Stream` de todos los movimientos ordenados por fecha.
+        -   Crear `getSaldoCajaStream` para obtener un `Stream` con el saldo total actual.
+    3.  **UI - Pantalla de Caja (`caja_screen.dart`)**:
+        -   Diseñar una nueva pantalla que muestre:
+            -   El saldo total en un lugar visible.
+            -   Una lista con el historial de movimientos.
+            -   Botones flotantes para registrar nuevos ingresos y egresos.
+        -   Crear un formulario (en un diálogo o nueva pantalla) para añadir/editar movimientos.
+    4.  **Integración y Navegación**:
+        -   Añadir un `BottomNavigationBar` en la pantalla principal.
+        -   Integrar la "Lista de Actividades" (`bienvenida_screen.dart`) y el "Control de Caja" (`caja_screen.dart`) como las dos pestañas principales de la aplicación.
+
+### Paso 3: Implementar un Sistema de Autenticación Real
 
 **Objetivo**: Aumentar la seguridad de la app y prepararla para un uso real con múltiples usuarios.
 
@@ -53,7 +74,7 @@ La aplicación utiliza Firebase (Cloud Firestore) como backend, lo que permite l
     3.  Asociar cada actividad creada al `UID` del usuario que la creó.
     4.  Definir **Reglas de Seguridad en Firestore** para que un usuario solo pueda ver y modificar sus propias actividades.
 
-### Paso 3: Mejorar la Experiencia de Usuario (UX)
+### Paso 4: Mejorar la Experiencia de Usuario (UX)
 
 **Objetivo**: Agilizar los flujos de trabajo más comunes, como el registro de ventas.
 

@@ -1,7 +1,7 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myapp/models/actividad.dart';
 import 'package:myapp/models/gasto.dart';
+import 'package:myapp/models/movimiento_caja.dart';
 import 'package:myapp/models/participante.dart';
 import 'package:myapp/models/venta.dart';
 
@@ -61,7 +61,6 @@ class FirebaseService {
         .update(participante.toFirestore());
   }
 
-  // ¡NUEVO MÉTODO AÑADIDO!
   Future<void> deleteParticipante(String actividadId, String participanteId) {
     return _db
         .collection('actividades')
@@ -180,5 +179,74 @@ class FirebaseService {
         .collection('inversiones')
         .doc(gastoId)
         .delete();
+  }
+
+  // MÉTODOS PARA CONTROL DE CAJA (CORREGIDO)
+  //----------------------------------------------------------------
+
+  Stream<double> getSaldoCajaStream() {
+    return _db
+        .collection('caja_resumen')
+        .doc('saldo_actual')
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists || snapshot.data() == null) {
+        return 0.0;
+      }
+      final data = snapshot.data() as Map<String, dynamic>;
+      return (data['saldoTotal'] ?? 0.0).toDouble();
+    });
+  }
+
+  Stream<List<MovimientoCaja>> getMovimientosCajaStream() {
+    return _db
+        .collection('movimientos_caja')
+        .orderBy('fecha', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => MovimientoCaja.fromFirestore(doc))
+            .toList());
+  }
+
+  Future<void> addMovimientoCaja({
+    required String tipo,
+    required double monto,
+    required String descripcion,
+    required DateTime fecha,
+    String? relacionActividad,
+  }) {
+    final saldoRef = _db.collection('caja_resumen').doc('saldo_actual');
+
+    return _db.runTransaction((transaction) async {
+      final saldoSnapshot = await transaction.get(saldoRef);
+
+      double saldoAnterior = 0.0;
+      if (saldoSnapshot.exists && saldoSnapshot.data() != null) {
+        final data = saldoSnapshot.data() as Map<String, dynamic>;
+        saldoAnterior = (data['saldoTotal'] ?? 0.0).toDouble();
+      }
+
+      final double nuevoSaldo;
+      if (tipo == 'ingreso') {
+        nuevoSaldo = saldoAnterior + monto;
+      } else {
+        nuevoSaldo = saldoAnterior - monto;
+      }
+
+      final nuevoMovimiento = MovimientoCaja(
+        id: '',
+        tipo: tipo,
+        monto: monto,
+        descripcion: descripcion,
+        fecha: fecha, // Usamos la fecha proporcionada
+        relacionActividad: relacionActividad,
+        saldoResultante: nuevoSaldo,
+      );
+
+      final nuevoMovimientoRef = _db.collection('movimientos_caja').doc();
+      transaction.set(nuevoMovimientoRef, nuevoMovimiento.toFirestore());
+
+      transaction.set(saldoRef, {'saldoTotal': nuevoSaldo}, SetOptions(merge: true));
+    });
   }
 }
