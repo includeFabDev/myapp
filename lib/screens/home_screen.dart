@@ -23,7 +23,7 @@ class HomeScreenState extends State<HomeScreen> {
   ];
 
   static const List<String> _titles = <String>[
-    'Actividades Economicas',
+    'Resumen de Actividades',
     'Control de Caja',
   ];
 

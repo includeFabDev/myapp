@@ -1,7 +1,6 @@
-
 import 'package:flutter/material.dart';
-import 'package:myapp/screens/register_screen.dart'; // Importa la nueva pantalla de registro
-import 'package:myapp/services/auth_service.dart';
+import 'package:myapp/screens/register_screen.dart';
+import 'package:myapp/services/auth_service_new.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isLoading = false;
   String _errorMessage = '';
+  bool _rememberMe = true;
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
@@ -25,16 +25,22 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = true;
         _errorMessage = '';
       });
-      final user = await _authService.signInWithEmailAndPassword(
-        _emailController.text,
-        _passwordController.text,
-      );
-      if (user == null) {
+      try {
+        await _authService.setPersistence(_rememberMe);
+        final user = await _authService.signInWithEmailAndPassword(
+          _emailController.text,
+          _passwordController.text,
+        );
+        if (user == null) {
+          setState(() {
+            _errorMessage = 'Email o contraseña incorrectos. Inténtalo de nuevo.';
+          });
+        }
+      } catch (e) {
         setState(() {
-          _errorMessage = 'Email o contraseña incorrectos. Inténtalo de nuevo.';
+          _errorMessage = 'Error al iniciar sesión. Inténtalo de nuevo.';
         });
       }
-      // Si el login es exitoso, AuthGate nos llevará a la pantalla principal.
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -45,34 +51,80 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.of(context).push(MaterialPageRoute(builder: (context) => const RegisterScreen()));
   }
 
+  void _showPasswordResetDialog() {
+    final resetEmailController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Recuperar contraseña'),
+          content: TextField(
+            controller: resetEmailController,
+            decoration: const InputDecoration(
+              labelText: 'Ingresa tu email',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.emailAddress,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  await _authService.sendPasswordResetEmail(resetEmailController.text);
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Correo de recuperación enviado')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Error al enviar correo')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Enviar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                const Icon(Icons.calculate_rounded, size: 80, color: Colors.orange),
+                const Icon(Icons.lock_outline, size: 80, color: Colors.blue),
                 const SizedBox(height: 20),
                 Text(
-                  'Gestor de Actividades',
-                  style: Theme.of(context).textTheme.headlineSmall,
+                  'Iniciar Sesión',
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
-                    labelText: 'Email',
+                    labelText: 'Correo electrónico',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.email),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) => (value == null || !value.contains('@'))
-                      ? 'Ingresa un email válido'
+                      ? 'Ingresa un correo válido'
                       : null,
                 ),
                 const SizedBox(height: 20),
@@ -88,6 +140,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? 'La contraseña debe tener al menos 6 caracteres'
                       : null,
                 ),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _rememberMe,
+                      onChanged: (value) {
+                        setState(() {
+                          _rememberMe = value ?? true;
+                        });
+                      },
+                    ),
+                    const Text('Recordarme'),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: _showPasswordResetDialog,
+                      child: const Text('¿Olvidaste tu contraseña?'),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 20),
                 if (_errorMessage.isNotEmpty)
                   Padding(
@@ -100,23 +170,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 _isLoading
                     ? const CircularProgressIndicator()
-                    : Column(
-                        children: [
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _login,
-                              style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
-                              child: const Text('Iniciar Sesión'),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          TextButton(
-                            onPressed: _navigateToRegister, // Navega a la pantalla de registro
-                            child: const Text('¿No tienes cuenta? Regístrate aquí'),
-                          ),
-                        ],
+                    : SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _login,
+                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
+                          child: const Text('Iniciar Sesión'),
+                        ),
                       ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: _navigateToRegister,
+                  child: const Text('¿No tienes cuenta? Regístrate aquí'),
+                ),
               ],
             ),
           ),

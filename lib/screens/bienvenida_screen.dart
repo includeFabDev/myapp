@@ -127,7 +127,7 @@ class _BienvenidaScreenState extends State<BienvenidaScreen> {
                           '${actividad.descripcion}\n${DateFormat('EEE, d MMM yyyy').format(actividad.fecha)}'),
                       isThreeLine: true,
                       onTap: () {
-                        context.push('/actividad/${actividad.id}', extra: actividad);
+                        context.push('/home/actividad/${actividad.id}', extra: actividad);
                       },
                     ),
                     // Botones debajo del recuadro de actividad
@@ -140,7 +140,7 @@ class _BienvenidaScreenState extends State<BienvenidaScreen> {
                         children: [
                           ElevatedButton.icon(
                             onPressed: () {
-                              context.push('/actividad/${actividad.id}', extra: actividad);
+                              context.push('/home/actividad/${actividad.id}', extra: actividad);
                             },
                             icon: const Icon(Icons.people),
                             label: const Text('Participantes'),
@@ -151,7 +151,7 @@ class _BienvenidaScreenState extends State<BienvenidaScreen> {
                           ),
                           ElevatedButton.icon(
                             onPressed: () {
-                              context.push('/inversiones/${actividad.id}', extra: actividad);
+                              context.push('/home/inversiones/${actividad.id}', extra: actividad);
                             },
                             icon: const Icon(Icons.attach_money),
                             label: const Text('Inversiones'),
@@ -162,7 +162,7 @@ class _BienvenidaScreenState extends State<BienvenidaScreen> {
                           ),
                           ElevatedButton.icon(
                             onPressed: () {
-                              context.push('/reportes/${actividad.id}', extra: actividad);
+                              context.push('/home/reportes/${actividad.id}', extra: actividad);
                             },
                             icon: const Icon(Icons.bar_chart),
                             label: const Text('Reportes'),
