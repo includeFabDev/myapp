@@ -1,6 +1,8 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:myapp/screens/register_screen.dart';
-import 'package:myapp/services/auth_service_new.dart';
+import 'package:myapp/services/auth_service.dart';
+import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,7 +12,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final AuthService _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -20,14 +21,16 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberMe = true;
 
   Future<void> _login() async {
+    developer.log('Botón de iniciar sesión presionado');
+    final authService = Provider.of<AuthService>(context, listen: false);
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
         _errorMessage = '';
       });
       try {
-        await _authService.setPersistence(_rememberMe);
-        final user = await _authService.signInWithEmailAndPassword(
+        await authService.setPersistence(_rememberMe);
+        final user = await authService.signInWithEmailAndPassword(
           _emailController.text,
           _passwordController.text,
         );
@@ -52,6 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showPasswordResetDialog() {
+    final authService = Provider.of<AuthService>(context, listen: false);
     final resetEmailController = TextEditingController();
     showDialog(
       context: context,
@@ -74,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ElevatedButton(
               onPressed: () async {
                 try {
-                  await _authService.sendPasswordResetEmail(resetEmailController.text);
+                  await authService.sendPasswordResetEmail(resetEmailController.text);
                   if (mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(

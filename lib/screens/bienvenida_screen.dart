@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/models/actividad.dart';
 import 'package:myapp/services/firebase_service.dart';
-import 'package:myapp/widgets/app_drawer.dart';
 
 class BienvenidaScreen extends StatefulWidget {
   const BienvenidaScreen({super.key});

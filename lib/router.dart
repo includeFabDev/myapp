@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/models/actividad.dart';
 import 'package:myapp/screens/activity_details_screen.dart';
@@ -11,15 +12,39 @@ import 'package:myapp/screens/login_screen.dart';
 import 'package:myapp/screens/participantes_activos_screen.dart';
 import 'package:myapp/screens/register_screen.dart';
 import 'package:myapp/screens/reportes_screen.dart';
-import 'package:myapp/widgets/auth_gate.dart';
+import 'package:myapp/services/auth_service.dart'; // Importación corregida
 
+// 1. Creamos una única instancia del servicio de autenticación.
+// Esto asegura que tanto el router como el resto de la app usen el mismo estado.
+final AuthService authService = AuthService();
+
+// La clave `navigatorKey` es importante para manejar el contexto correctamente.
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+
+// 2. Configuramos el router para usar la instancia de AuthService.
 final GoRouter router = GoRouter(
-  initialLocation: '/auth',
+  navigatorKey: _rootNavigatorKey,
+  initialLocation: '/home',
+  // `refreshListenable` ahora escucha directamente a nuestra instancia de AuthService.
+  refreshListenable: authService,
+  redirect: (BuildContext context, GoRouterState state) {
+    // Usamos la instancia única para verificar el estado de autenticación.
+    final bool loggedIn = authService.user != null;
+    final String location = state.uri.toString();
+
+    final bool isAuthRoute = location == '/login' || location == '/register';
+
+    if (!loggedIn && !isAuthRoute) {
+      return '/login';
+    }
+
+    if (loggedIn && isAuthRoute) {
+      return '/home';
+    }
+
+    return null;
+  },
   routes: [
-    GoRoute(
-      path: '/auth',
-      builder: (context, state) => const AuthGate(),
-    ),
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginScreen(),
@@ -84,3 +109,5 @@ final GoRouter router = GoRouter(
     ),
   ],
 );
+
+// 3. La clase `_GoRouterRefreshStream` ya no es necesaria, la eliminamos.

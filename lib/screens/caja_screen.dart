@@ -242,7 +242,7 @@ class CajaScreenState extends State<CajaScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: tipoSeleccionado,
+                      initialValue: tipoSeleccionado,
                       decoration: const InputDecoration(labelText: 'Tipo'),
                       items: const [
                         DropdownMenuItem(value: 'ingreso', child: Text('Ingreso')),

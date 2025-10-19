@@ -4,6 +4,8 @@ import 'package:myapp/firebase_options.dart';
 import 'package:myapp/router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart';
+import 'package:myapp/services/auth_service.dart'; // Importamos el servicio
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,11 +15,17 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    // Usamos la instancia única de AuthService que creamos en router.dart
+    runApp(
+      ChangeNotifierProvider<AuthService>.value(
+        value: authService, // Le pasamos la instancia existente
+        child: const MyApp(),
+      ),
+    );
   } catch (e) {
     // ignore: avoid_print
-    print("Error al inicializar Firebase: $e");
+    print("Error al inicializar Firebase y ejecutar la app: $e");
   }
-  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -26,7 +34,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      routerConfig: router, // Usa el router configurado
+      routerConfig: router,
       debugShowCheckedModeBanner: false,
       title: 'Gestión Financiera',
       localizationsDelegates: const [

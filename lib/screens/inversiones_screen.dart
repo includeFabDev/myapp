@@ -8,7 +8,7 @@ import 'package:myapp/services/firebase_service.dart';
 class InversionesScreen extends StatefulWidget {
   final Actividad actividad;
 
-  const InversionesScreen({Key? key, required this.actividad}) : super(key: key);
+  const InversionesScreen({super.key, required this.actividad});
 
   @override
   _InversionesScreenState createState() => _InversionesScreenState();
@@ -32,9 +32,9 @@ class _InversionesScreenState extends State<InversionesScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showGastoDialog(),
-        child: const Icon(Icons.add),
         backgroundColor: Theme.of(context).primaryColor,
         tooltip: 'Añadir Gasto',
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -124,8 +124,8 @@ class _InversionesScreenState extends State<InversionesScreen> {
   }
 
   void _showGastoDialog({Gasto? gasto}) {
-    final _descripcionController = TextEditingController(text: gasto?.descripcion ?? '');
-    final _montoController = TextEditingController(text: gasto?.monto.toString() ?? '');
+    final descripcionController = TextEditingController(text: gasto?.descripcion ?? '');
+    final montoController = TextEditingController(text: gasto?.monto.toString() ?? '');
 
     showDialog(
       context: context,
@@ -136,12 +136,12 @@ class _InversionesScreenState extends State<InversionesScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: _descripcionController,
+                controller: descripcionController,
                 decoration: const InputDecoration(labelText: 'Descripción'),
                 textCapitalization: TextCapitalization.sentences,
               ),
               TextField(
-                controller: _montoController,
+                controller: montoController,
                 decoration: const InputDecoration(labelText: 'Monto', prefixText: 'Bs.'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
@@ -151,8 +151,8 @@ class _InversionesScreenState extends State<InversionesScreen> {
             TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
             ElevatedButton(
               onPressed: () {
-                final descripcion = _descripcionController.text.trim();
-                final monto = double.tryParse(_montoController.text) ?? 0.0;
+                final descripcion = descripcionController.text.trim();
+                final monto = double.tryParse(montoController.text) ?? 0.0;
 
                 if (descripcion.isNotEmpty && monto > 0) {
                   final nuevoGasto = Gasto(
