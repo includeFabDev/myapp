@@ -12,7 +12,7 @@ import 'package:myapp/screens/login_screen.dart';
 import 'package:myapp/screens/participantes_activos_screen.dart';
 import 'package:myapp/screens/register_screen.dart';
 import 'package:myapp/screens/reportes_screen.dart';
-import 'package:myapp/services/auth_service.dart'; // Importación corregida
+import 'package:myapp/services/auth_service.dart'; // Importación original
 
 // 1. Creamos una única instancia del servicio de autenticación.
 // Esto asegura que tanto el router como el resto de la app usen el mismo estado.

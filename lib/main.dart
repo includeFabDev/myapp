@@ -5,7 +5,7 @@ import 'package:myapp/router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
-import 'package:myapp/services/auth_service.dart'; // Importamos el servicio
+import 'package:myapp/services/auth_service.dart'; // Importamos el servicio original
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -49,15 +50,18 @@ class AuthService with ChangeNotifier {
   }
 
   Future<void> setPersistence(bool rememberMe) async {
-    try {
-      if (rememberMe) {
-        await _auth.setPersistence(Persistence.LOCAL);
-      } else {
-        await _auth.setPersistence(Persistence.NONE);
+    if (kIsWeb) {
+      try {
+        if (rememberMe) {
+          await _auth.setPersistence(Persistence.LOCAL);
+        } else {
+          await _auth.setPersistence(Persistence.SESSION);
+        }
+      } on FirebaseAuthException catch (e) {
+        print('Error al configurar persistencia: ${e.message}');
+        rethrow;
       }
-    } on FirebaseAuthException catch (e) {
-      print('Error al configurar persistencia: ${e.message}');
-      rethrow;
     }
+    // For mobile platforms, persistence is handled automatically
   }
 }

@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myapp/models/actividad.dart';
+import 'package:myapp/models/archivo_adjunto.dart';
+import 'package:myapp/models/comentario.dart';
 import 'package:myapp/models/gasto.dart';
+import 'package:myapp/models/log_cambio.dart';
 import 'package:myapp/models/movimiento_caja.dart';
 import 'package:myapp/models/participante.dart';
 import 'package:myapp/models/venta.dart';
@@ -44,30 +47,146 @@ class FirebaseService {
         .map((doc) => Participante.fromFirestore(doc));
   }
 
-  Future<void> addParticipante(String actividadId, Participante participante) {
-    return _db
-        .collection('actividades')
-        .doc(actividadId)
-        .collection('participantes')
-        .add(participante.toFirestore());
+  Future<void> addParticipante(String actividadId, Participante participante, String usuarioId, String usuarioNombre) {
+    return _db.runTransaction((transaction) async {
+      final participanteRef = _db
+          .collection('actividades')
+          .doc(actividadId)
+          .collection('participantes')
+          .doc();
+
+      transaction.set(participanteRef, participante.toFirestore());
+
+      final log = LogCambio(
+        id: '',
+        tipoEntidad: 'participante',
+        entidadId: actividadId,
+        tipoCambio: 'crear',
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+        fecha: DateTime.now(),
+        descripcion: 'Se añadió a la actividad al participante ${participante.nombre}',
+      );
+
+      final logRef = _db.collection('logs_cambios').doc();
+      transaction.set(logRef, log.toFirestore());
+    });
   }
 
-  Future<void> updateParticipante(String actividadId, Participante participante) {
-    return _db
-        .collection('actividades')
-        .doc(actividadId)
-        .collection('participantes')
-        .doc(participante.id)
-        .update(participante.toFirestore());
+  Future<void> updateParticipante(String actividadId, Participante participante, String usuarioId, String usuarioNombre) {
+    return _db.runTransaction((transaction) async {
+      final participanteRef = _db
+          .collection('actividades')
+          .doc(actividadId)
+          .collection('participantes')
+          .doc(participante.id);
+
+      final participanteSnapshot = await transaction.get(participanteRef);
+      if (!participanteSnapshot.exists) {
+        throw Exception('Participante no encontrado');
+      }
+
+      final participanteActual = Participante.fromFirestore(participanteSnapshot);
+
+      transaction.update(participanteRef, participante.toFirestore());
+
+      // Log for name change
+      if (participanteActual.nombre != participante.nombre) {
+        final log = LogCambio(
+          id: '',
+          tipoEntidad: 'participante',
+          entidadId: actividadId,
+          tipoCambio: 'actualizar',
+          usuarioId: usuarioId,
+          usuarioNombre: usuarioNombre,
+          fecha: DateTime.now(),
+          descripcion: 'Se actualizó el nombre del participante de "${participanteActual.nombre}" a "${participante.nombre}"',
+        );
+        final logRef = _db.collection('logs_cambios').doc();
+        transaction.set(logRef, log.toFirestore());
+      }
+
+      // Log for sales change
+      if (participanteActual.llevo != participante.llevo) {
+        final log = LogCambio(
+          id: '',
+          tipoEntidad: 'venta',
+          entidadId: actividadId,
+          tipoCambio: 'actualizar',
+          usuarioId: usuarioId,
+          usuarioNombre: usuarioNombre,
+          fecha: DateTime.now(),
+          descripcion: 'Cantidad vendida de ${participante.nombre} actualizada de ${participanteActual.llevo} a ${participante.llevo}',
+        );
+        final logRef = _db.collection('logs_cambios').doc();
+        transaction.set(logRef, log.toFirestore());
+      }
+
+      // Log for efectivo payment change
+      if (participanteActual.pagoEfectivo != participante.pagoEfectivo) {
+        final log = LogCambio(
+          id: '',
+          tipoEntidad: 'pago',
+          entidadId: actividadId,
+          tipoCambio: 'actualizar',
+          usuarioId: usuarioId,
+          usuarioNombre: usuarioNombre,
+          fecha: DateTime.now(),
+          descripcion: 'Pago en efectivo de ${participante.nombre} actualizado de ${participanteActual.pagoEfectivo} a ${participante.pagoEfectivo}',
+        );
+        final logRef = _db.collection('logs_cambios').doc();
+        transaction.set(logRef, log.toFirestore());
+      }
+
+      // Log for QR payment change
+      if (participanteActual.pagoQr != participante.pagoQr) {
+        final log = LogCambio(
+          id: '',
+          tipoEntidad: 'pago',
+          entidadId: actividadId,
+          tipoCambio: 'actualizar',
+          usuarioId: usuarioId,
+          usuarioNombre: usuarioNombre,
+          fecha: DateTime.now(),
+          descripcion: 'Pago con QR de ${participante.nombre} actualizado de ${participanteActual.pagoQr} a ${participante.pagoQr}',
+        );
+        final logRef = _db.collection('logs_cambios').doc();
+        transaction.set(logRef, log.toFirestore());
+      }
+    });
   }
 
-  Future<void> deleteParticipante(String actividadId, String participanteId) {
-    return _db
-        .collection('actividades')
-        .doc(actividadId)
-        .collection('participantes')
-        .doc(participanteId)
-        .delete();
+  Future<void> deleteParticipante(String actividadId, String participanteId, String usuarioId, String usuarioNombre) {
+    return _db.runTransaction((transaction) async {
+      final participanteRef = _db
+          .collection('actividades')
+          .doc(actividadId)
+          .collection('participantes')
+          .doc(participanteId);
+
+      final participanteSnapshot = await transaction.get(participanteRef);
+      if (!participanteSnapshot.exists) {
+        throw Exception('Participante no encontrado');
+      }
+
+      final participante = Participante.fromFirestore(participanteSnapshot);
+
+      transaction.delete(participanteRef);
+
+      final log = LogCambio(
+        id: '',
+        tipoEntidad: 'participante',
+        entidadId: actividadId,
+        tipoCambio: 'eliminar',
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+        fecha: DateTime.now(),
+        descripcion: 'Se ha eliminado al participante ${participante.nombre}',
+      );
+
+      final logRef = _db.collection('logs_cambios').doc();
+      transaction.set(logRef, log.toFirestore());
+    });
   }
 
   // MÉTODOS PARA VENTAS
@@ -86,7 +205,7 @@ class FirebaseService {
             snapshot.docs.map((doc) => Venta.fromFirestore(doc)).toList());
   }
 
-  Future<void> addVenta(String actividadId, String participanteId, Venta venta) {
+  Future<void> addVenta(String actividadId, String participanteId, Venta venta, String usuarioId, String usuarioNombre) {
     return _db.runTransaction((transaction) async {
       final participanteRef = _db
           .collection('actividades')
@@ -95,12 +214,33 @@ class FirebaseService {
           .doc(participanteId);
       final ventaRef = participanteRef.collection('ventas').doc();
 
+      final participanteSnapshot = await transaction.get(participanteRef);
+      if (!participanteSnapshot.exists) {
+        throw Exception('Participante no encontrado');
+      }
+      final participante = Participante.fromFirestore(participanteSnapshot);
+      final cantidadAnterior = participante.llevo;
+
       transaction.update(participanteRef, {'llevo': FieldValue.increment(venta.cantidad)});
       transaction.set(ventaRef, venta.toFirestore());
+
+      final log = LogCambio(
+        id: '',
+        tipoEntidad: 'venta',
+        entidadId: actividadId,
+        tipoCambio: 'crear',
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+        fecha: DateTime.now(),
+        descripcion: 'Cantidad vendida de ${participante.nombre} de $cantidadAnterior a ${cantidadAnterior + venta.cantidad}',
+      );
+
+      final logRef = _db.collection('logs_cambios').doc();
+      transaction.set(logRef, log.toFirestore());
     });
   }
 
-  Future<void> updateVenta(String actividadId, String participanteId, Venta ventaOriginal, int nuevaCantidad) {
+  Future<void> updateVenta(String actividadId, String participanteId, Venta ventaOriginal, int nuevaCantidad, String usuarioId, String usuarioNombre) {
     return _db.runTransaction((transaction) async {
       final participanteRef = _db
           .collection('actividades')
@@ -109,13 +249,34 @@ class FirebaseService {
           .doc(participanteId);
       final ventaRef = participanteRef.collection('ventas').doc(ventaOriginal.id);
 
+      final participanteSnapshot = await transaction.get(participanteRef);
+      if (!participanteSnapshot.exists) {
+        throw Exception('Participante no encontrado');
+      }
+      final participante = Participante.fromFirestore(participanteSnapshot);
+      final cantidadAnterior = participante.llevo;
+
       final diferencia = nuevaCantidad - ventaOriginal.cantidad;
       transaction.update(participanteRef, {'llevo': FieldValue.increment(diferencia)});
       transaction.update(ventaRef, {'cantidad': nuevaCantidad});
+
+      final log = LogCambio(
+        id: '',
+        tipoEntidad: 'venta',
+        entidadId: actividadId,
+        tipoCambio: 'actualizar',
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+        fecha: DateTime.now(),
+        descripcion: 'Cantidad vendida de ${participante.nombre} actualizada de $cantidadAnterior a ${cantidadAnterior + diferencia}',
+      );
+
+      final logRef = _db.collection('logs_cambios').doc();
+      transaction.set(logRef, log.toFirestore());
     });
   }
 
-  Future<void> deleteVenta(String actividadId, String participanteId, Venta venta) {
+  Future<void> deleteVenta(String actividadId, String participanteId, Venta venta, String usuarioId, String usuarioNombre) {
     return _db.runTransaction((transaction) async {
       final participanteRef = _db
           .collection('actividades')
@@ -124,8 +285,29 @@ class FirebaseService {
           .doc(participanteId);
       final ventaRef = participanteRef.collection('ventas').doc(venta.id);
 
+      final participanteSnapshot = await transaction.get(participanteRef);
+      if (!participanteSnapshot.exists) {
+        throw Exception('Participante no encontrado');
+      }
+      final participante = Participante.fromFirestore(participanteSnapshot);
+      final cantidadAnterior = participante.llevo;
+
       transaction.update(participanteRef, {'llevo': FieldValue.increment(-venta.cantidad)});
       transaction.delete(ventaRef);
+
+      final log = LogCambio(
+        id: '',
+        tipoEntidad: 'venta',
+        entidadId: actividadId,
+        tipoCambio: 'eliminar',
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+        fecha: DateTime.now(),
+        descripcion: 'Cantidad vendida de ${participante.nombre} eliminada de $cantidadAnterior a ${cantidadAnterior - venta.cantidad}',
+      );
+
+      final logRef = _db.collection('logs_cambios').doc();
+      transaction.set(logRef, log.toFirestore());
     });
   }
 
@@ -366,5 +548,94 @@ class FirebaseService {
 
       return participantes;
     });
+  }
+
+  // MÉTODOS PARA LOGS DE CAMBIOS (AUDITORÍA)
+  //----------------------------------------------------------------
+
+  Future<void> addLogCambio(LogCambio log) {
+    return _db.collection('logs_cambios').add(log.toFirestore());
+  }
+
+  Stream<List<LogCambio>> getLogsCambios(String actividadId) {
+    return _db
+        .collection('logs_cambios')
+        .where('entidadId', isEqualTo: actividadId)
+        .orderBy('fecha', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => LogCambio.fromFirestore(doc)).toList());
+  }
+
+  // MÉTODOS PARA COMENTARIOS
+  //----------------------------------------------------------------
+
+  Stream<List<Comentario>> getComentarios(String actividadId) {
+    return _db
+        .collection('actividades')
+        .doc(actividadId)
+        .collection('comentarios')
+        .orderBy('fecha', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Comentario.fromFirestore(doc)).toList());
+  }
+
+  Future<void> addComentario(String actividadId, Comentario comentario, String usuarioId, String usuarioNombre) {
+    return _db.runTransaction((transaction) async {
+      final comentarioRef = _db
+          .collection('actividades')
+          .doc(actividadId)
+          .collection('comentarios')
+          .doc();
+
+      transaction.set(comentarioRef, comentario.toFirestore());
+
+      final log = LogCambio(
+        id: '',
+        tipoEntidad: 'comentario',
+        entidadId: actividadId,
+        tipoCambio: 'crear',
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+        fecha: DateTime.now(),
+        descripcion: 'Comentario agregado: ${comentario.texto}',
+      );
+
+      final logRef = _db.collection('logs_cambios').doc();
+      transaction.set(logRef, log.toFirestore());
+    });
+  }
+
+  // MÉTODOS PARA ARCHIVOS ADJUNTOS
+  //----------------------------------------------------------------
+
+  Stream<List<ArchivoAdjunto>> getArchivosAdjuntos(String actividadId) {
+    return _db
+        .collection('actividades')
+        .doc(actividadId)
+        .collection('archivos_adjuntos')
+        .orderBy('fechaSubida', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ArchivoAdjunto.fromFirestore(doc))
+            .toList());
+  }
+
+  Future<void> addArchivoAdjunto(String actividadId, ArchivoAdjunto archivo) {
+    return _db
+        .collection('actividades')
+        .doc(actividadId)
+        .collection('archivos_adjuntos')
+        .add(archivo.toFirestore());
+  }
+
+  Future<void> deleteArchivoAdjunto(String actividadId, String archivoId) {
+    return _db
+        .collection('actividades')
+        .doc(actividadId)
+        .collection('archivos_adjuntos')
+        .doc(archivoId)
+        .delete();
   }
 }

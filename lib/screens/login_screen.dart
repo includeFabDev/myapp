@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:myapp/screens/register_screen.dart';
 import 'package:myapp/services/auth_service.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +20,33 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String _errorMessage = '';
   bool _rememberMe = true;
+  String? _savedEmail;
+  bool _passwordVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedEmail();
+  }
+
+  Future<void> _loadSavedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _savedEmail = prefs.getString('saved_email');
+      if (_savedEmail != null) {
+        _emailController.text = _savedEmail!;
+      }
+    });
+  }
+
+  Future<void> _saveEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe && _emailController.text.isNotEmpty) {
+      await prefs.setString('saved_email', _emailController.text.trim());
+    } else {
+      await prefs.remove('saved_email');
+    }
+  }
 
   Future<void> _login() async {
     developer.log('Botón de iniciar sesión presionado');
@@ -31,17 +59,25 @@ class _LoginScreenState extends State<LoginScreen> {
       try {
         await authService.setPersistence(_rememberMe);
         final user = await authService.signInWithEmailAndPassword(
-          _emailController.text,
-          _passwordController.text,
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
         );
+
+        developer.log('Resultado login: $user');
+
+        // Save email if remember me is checked
+        await _saveEmail();
+
         if (user == null) {
           setState(() {
             _errorMessage = 'Email o contraseña incorrectos. Inténtalo de nuevo.';
           });
         }
-      } catch (e) {
+      } catch (e, stack) {
+        developer.log('Error al iniciar sesión: $e');
+        developer.log('Stacktrace: $stack');
         setState(() {
-          _errorMessage = 'Error al iniciar sesión. Inténtalo de nuevo.';
+          _errorMessage = 'Error al iniciar sesión: $e';
         });
       }
       if (mounted) {
@@ -134,12 +170,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _passwordController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Contraseña',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _passwordVisible ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _passwordVisible = !_passwordVisible;
+                        });
+                      },
+                    ),
                   ),
-                  obscureText: true,
+                  obscureText: !_passwordVisible,
                   validator: (value) => (value == null || value.length < 6)
                       ? 'La contraseña debe tener al menos 6 caracteres'
                       : null,
@@ -156,9 +202,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const Text('Recordarme'),
                     const Spacer(),
-                    TextButton(
-                      onPressed: _showPasswordResetDialog,
-                      child: const Text('¿Olvidaste tu contraseña?'),
+                    Flexible(
+                      child: TextButton(
+                        onPressed: _showPasswordResetDialog,
+                        child: const Text(
+                          '¿Olvidaste tu contraseña?',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
                   ],
                 ),

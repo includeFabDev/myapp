@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/models/participante.dart';
 import 'package:myapp/models/venta.dart';
+import 'package:myapp/services/auth_service.dart';
 import 'package:myapp/services/firebase_service.dart';
+import 'package:provider/provider.dart';
 
 class ParticipantDetailsScreen extends StatefulWidget {
   final String actividadId;
@@ -49,18 +51,22 @@ class _ParticipantDetailsScreenState extends State<ParticipantDetailsScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   formKey.currentState!.save();
-                  if (isEditing) {
-                    _firebaseService.updateVenta(widget.actividadId, widget.participante.id!, venta, cantidad!);
-                  } else {
-                    final nuevaVenta = Venta(
-                      id: '',
-                      cantidad: cantidad!,
-                      fecha: DateTime.now(), participanteId: '',
-                    );
-                    _firebaseService.addVenta(widget.actividadId, widget.participante.id!, nuevaVenta);
+                  final authService = Provider.of<AuthService>(context, listen: false);
+                  final user = authService.user;
+                  if (user != null) {
+                    if (isEditing) {
+                      await _firebaseService.updateVenta(widget.actividadId, widget.participante.id!, venta, cantidad!, user.uid, user.displayName ?? user.email ?? 'Usuario');
+                    } else {
+                      final nuevaVenta = Venta(
+                        id: '',
+                        cantidad: cantidad!,
+                        fecha: DateTime.now(), participanteId: '',
+                      );
+                      await _firebaseService.addVenta(widget.actividadId, widget.participante.id!, nuevaVenta, user.uid, user.displayName ?? user.email ?? 'Usuario');
+                    }
                   }
                   Navigator.pop(context);
                 }
@@ -94,11 +100,39 @@ class _ParticipantDetailsScreenState extends State<ParticipantDetailsScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   formKey.currentState!.save();
                   final updatedParticipante = participante.copyWith(nombre: nuevoNombre);
-                  _firebaseService.updateParticipante(widget.actividadId, updatedParticipante);
+                  // Assuming we have access to auth service, but since it's not imported, we need to add it
+                  // For now, I'll assume we need to pass user info, but since it's not available, this might need adjustment
+                  // Actually, looking at the code, it seems this screen doesn't have auth service imported, so we might need to pass it or get it differently
+                  // For simplicity, I'll add the import and use it
+                  // But to fix the error, I'll make it async and add the parameters, but since auth is not available, this is a problem
+                  // Perhaps this screen doesn't need user tracking for name updates, but to be consistent, we should add it
+                  // Let's add the import and use it
+                  // First, add import at top
+                  // Since the file is not shown fully, I'll assume we need to add the import
+                  // Actually, the read_file shows the import is not there, so we need to add it
+                  // But to fix the immediate error, I'll make the function async and add the call with placeholders, but that's not good
+                  // Better to add the auth service import and use it properly
+                  // Let's do that
+                  // Add import at top of file
+                  // The file starts with import 'package:flutter/material.dart';
+                  // So add after that
+                  // import 'package:myapp/services/auth_service.dart';
+                  // import 'package:provider/provider.dart';
+                  // Then in the function, get the user
+                  final authService = Provider.of<AuthService>(context, listen: false);
+                  final user = authService.user;
+                  if (user != null) {
+                    await _firebaseService.updateParticipante(
+                      widget.actividadId,
+                      updatedParticipante,
+                      user.uid,
+                      user.displayName ?? user.email ?? 'Usuario',
+                    );
+                  }
                   Navigator.pop(context);
                 }
               },
@@ -222,8 +256,12 @@ class _ParticipantDetailsScreenState extends State<ParticipantDetailsScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      _firebaseService.deleteVenta(widget.actividadId, widget.participante.id!, venta);
+                    onPressed: () async {
+                      final authService = Provider.of<AuthService>(context, listen: false);
+                      final user = authService.user;
+                      if (user != null) {
+                        await _firebaseService.deleteVenta(widget.actividadId, widget.participante.id!, venta, user.uid, user.displayName ?? user.email ?? 'Usuario');
+                      }
                     },
                   ),
                 ],
