@@ -1,7 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/models/movimiento_caja.dart';
+import 'package:myapp/services/auth_service.dart';
 import 'package:myapp/services/firebase_service.dart';
+import 'package:provider/provider.dart';
 
 class CajaScreen extends StatefulWidget {
   const CajaScreen({super.key});
@@ -13,7 +17,7 @@ class CajaScreen extends StatefulWidget {
 class CajaScreenState extends State<CajaScreen> {
   final FirebaseService _firebaseService = FirebaseService();
 
-  void _showAddMovimientoDialog({required String tipo}) {
+  void _showAddMovimientoDialog({required String tipo, required User user}) {
     final formKey = GlobalKey<FormState>();
     final montoController = TextEditingController();
     final descripcionController = TextEditingController();
@@ -82,6 +86,8 @@ class CajaScreenState extends State<CajaScreen> {
                     monto: double.parse(montoController.text),
                     descripcion: descripcionController.text,
                     fecha: fechaSeleccionada,
+                    usuarioId: user.uid,
+                    usuarioNombre: user.displayName ?? user.email ?? 'Desconocido',
                   );
                   Navigator.pop(context);
                 }
@@ -97,34 +103,47 @@ class CajaScreenState extends State<CajaScreen> {
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(locale: 'es_BO', symbol: 'Bs.', decimalDigits: 2);
+    final user = Provider.of<AuthService>(context).user;
 
     return Scaffold(
-      body: Column(
-        children: [
-          _buildSaldoCard(currencyFormat),
-          Expanded(child: _buildMovimientosList(currencyFormat)),
-        ],
-      ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton.extended(
-            onPressed: () => _showAddMovimientoDialog(tipo: 'ingreso'),
-            label: const Text('Ingreso'),
-            icon: const Icon(Icons.add),
-            heroTag: 'ingreso_fab',
-            backgroundColor: Colors.green,
-          ),
-          const SizedBox(height: 10),
-          FloatingActionButton.extended(
-            onPressed: () => _showAddMovimientoDialog(tipo: 'egreso'),
-            label: const Text('Egreso'),
-            icon: const Icon(Icons.remove),
-            heroTag: 'egreso_fab',
-            backgroundColor: Colors.red,
-          ),
-        ],
-      ),
+      body: user == null
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                _buildSaldoCard(currencyFormat),
+                Expanded(child: _buildMovimientosList(currencyFormat, user)),
+              ],
+            ),
+      floatingActionButton: user == null
+          ? null
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                FloatingActionButton.extended(
+                  onPressed: () => context.go('/caja/log'),
+                  label: const Text('Historial'),
+                  icon: const Icon(Icons.history),
+                  heroTag: 'historial_fab',
+                  backgroundColor: Colors.blue,
+                ),
+                const SizedBox(height: 10),
+                FloatingActionButton.extended(
+                  onPressed: () => _showAddMovimientoDialog(tipo: 'ingreso', user: user),
+                  label: const Text('Ingreso'),
+                  icon: const Icon(Icons.add),
+                  heroTag: 'ingreso_fab',
+                  backgroundColor: Colors.green,
+                ),
+                const SizedBox(height: 10),
+                FloatingActionButton.extended(
+                  onPressed: () => _showAddMovimientoDialog(tipo: 'egreso', user: user),
+                  label: const Text('Egreso'),
+                  icon: const Icon(Icons.remove),
+                  heroTag: 'egreso_fab',
+                  backgroundColor: Colors.red,
+                ),
+              ],
+            ),
     );
   }
 
@@ -152,7 +171,7 @@ class CajaScreenState extends State<CajaScreen> {
     );
   }
 
-  Widget _buildMovimientosList(NumberFormat currencyFormat) {
+  Widget _buildMovimientosList(NumberFormat currencyFormat, User user) {
     return StreamBuilder<List<MovimientoCaja>>(
       stream: _firebaseService.getMovimientosCajaStream(),
       builder: (context, snapshot) {
@@ -200,7 +219,11 @@ class CajaScreenState extends State<CajaScreen> {
                 );
               },
               onDismissed: (direction) {
-                _firebaseService.deleteMovimientoCaja(movimiento.id);
+                _firebaseService.deleteMovimientoCaja(
+                  movimientoId: movimiento.id,
+                  usuarioId: user.uid,
+                  usuarioNombre: user.displayName ?? user.email ?? 'Desconocido',
+                );
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Movimiento eliminado')),
                 );
@@ -213,7 +236,7 @@ class CajaScreenState extends State<CajaScreen> {
                   '${isIngreso ? '+' : '-'}${currencyFormat.format(movimiento.monto)}',
                   style: TextStyle(color: isIngreso ? Colors.green : Colors.red, fontWeight: FontWeight.bold),
                 ),
-                onTap: () => _showEditMovimientoDialog(movimiento),
+                onTap: () => _showEditMovimientoDialog(movimiento, user),
               ),
             );
           },
@@ -222,7 +245,7 @@ class CajaScreenState extends State<CajaScreen> {
     );
   }
 
-  void _showEditMovimientoDialog(MovimientoCaja movimiento) {
+  void _showEditMovimientoDialog(MovimientoCaja movimiento, User user) {
     final formKey = GlobalKey<FormState>();
     final montoController = TextEditingController(text: movimiento.monto.toString());
     final descripcionController = TextEditingController(text: movimiento.descripcion);
@@ -310,6 +333,8 @@ class CajaScreenState extends State<CajaScreen> {
                     monto: double.parse(montoController.text),
                     descripcion: descripcionController.text,
                     fecha: fechaSeleccionada,
+                    usuarioId: user.uid,
+                    usuarioNombre: user.displayName ?? user.email ?? 'Desconocido',
                   );
                   Navigator.pop(context);
                 }

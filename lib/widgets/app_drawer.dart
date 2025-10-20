@@ -12,15 +12,15 @@ class AppDrawer extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: const BoxDecoration(
-              color: Colors.green,
-            ),
+            decoration: const BoxDecoration(color: Colors.green),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const CircleAvatar(
                   radius: 30,
-                  backgroundImage: AssetImage('assets/default_avatar.png'), // Placeholder image
+                  backgroundImage: AssetImage(
+                    'assets/default_avatar.png',
+                  ), // Placeholder image
                 ),
                 const SizedBox(height: 10),
                 const Text(
@@ -33,10 +33,7 @@ class AppDrawer extends StatelessWidget {
                 ),
                 const Text(
                   'Tesorería del grupo juvenil',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ],
             ),
@@ -66,14 +63,6 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.account_balance_wallet),
-            title: const Text('Control de Caja'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go('/caja');
-            },
-          ),
-          ListTile(
             leading: const Icon(Icons.attach_money),
             title: const Text('Inversiones'),
             onTap: () {
@@ -90,22 +79,14 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.analytics),
-            title: const Text('Reportes Generales'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go('/reportes_generales');
-            },
-          ),
-          ListTile(
             leading: const Icon(Icons.settings),
             title: const Text('Configuración'),
             onTap: () {
               Navigator.pop(context);
               // Placeholder for settings
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Próximamente')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Próximamente')));
             },
           ),
           ListTile(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/models/actividad.dart';
 import 'package:myapp/screens/activity_details_screen.dart';
-import 'package:myapp/screens/caja_screen.dart';
 import 'package:myapp/screens/home_screen.dart';
 import 'package:myapp/screens/inversiones_screen.dart';
 import 'package:myapp/screens/inversiones_selector_screen.dart';
@@ -45,10 +44,7 @@ final GoRouter router = GoRouter(
     return null;
   },
   routes: [
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginScreen(),
-    ),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
@@ -91,10 +87,7 @@ final GoRouter router = GoRouter(
       path: '/participantes_activos',
       builder: (context, state) => const ParticipantesActivosScreen(),
     ),
-    GoRoute(
-      path: '/caja',
-      builder: (context, state) => const CajaScreen(),
-    ),
+
     GoRoute(
       path: '/inversiones',
       builder: (context, state) => const InversionesSelectorScreen(),

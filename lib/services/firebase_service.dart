@@ -363,7 +363,7 @@ class FirebaseService {
         .delete();
   }
 
-  // MÉTODOS PARA CONTROL DE CAJA (CORREGIDO)
+  // MÉTODOS PARA CONTROL DE CAJA
   //----------------------------------------------------------------
 
   Stream<double> getSaldoCajaStream() {
@@ -396,6 +396,8 @@ class FirebaseService {
     required String descripcion,
     required DateTime fecha,
     String? relacionActividad,
+    required String usuarioId,
+    required String usuarioNombre,
   }) {
     final saldoRef = _db.collection('caja_resumen').doc('saldo_actual');
 
@@ -415,20 +417,33 @@ class FirebaseService {
         nuevoSaldo = saldoAnterior - monto;
       }
 
+      final nuevoMovimientoRef = _db.collection('movimientos_caja').doc();
       final nuevoMovimiento = MovimientoCaja(
-        id: '',
+        id: nuevoMovimientoRef.id,
         tipo: tipo,
         monto: monto,
         descripcion: descripcion,
-        fecha: fecha, // Usamos la fecha proporcionada
+        fecha: fecha,
         relacionActividad: relacionActividad,
         saldoResultante: nuevoSaldo,
       );
 
-      final nuevoMovimientoRef = _db.collection('movimientos_caja').doc();
       transaction.set(nuevoMovimientoRef, nuevoMovimiento.toFirestore());
-
       transaction.set(saldoRef, {'saldoTotal': nuevoSaldo}, SetOptions(merge: true));
+
+      final log = LogCambio(
+        id: '',
+        tipoEntidad: 'caja',
+        entidadId: nuevoMovimientoRef.id,
+        tipoCambio: 'crear',
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+        fecha: DateTime.now(),
+        descripcion: 'Se creó un $tipo de Bs. $monto: "$descripcion"',
+      );
+
+      final logRef = _db.collection('logs_caja').doc();
+      transaction.set(logRef, log.toFirestore());
     });
   }
 
@@ -439,28 +454,25 @@ class FirebaseService {
     required String descripcion,
     required DateTime fecha,
     String? relacionActividad,
+    required String usuarioId,
+    required String usuarioNombre,
   }) {
     final movimientoRef = _db.collection('movimientos_caja').doc(movimientoId);
     final saldoRef = _db.collection('caja_resumen').doc('saldo_actual');
 
     return _db.runTransaction((transaction) async {
-      // Obtener el movimiento actual
       final movimientoSnapshot = await transaction.get(movimientoRef);
       if (!movimientoSnapshot.exists) {
         throw Exception('Movimiento no encontrado');
       }
-
       final movimientoActual = MovimientoCaja.fromFirestore(movimientoSnapshot);
 
-      // Obtener el saldo actual
       final saldoSnapshot = await transaction.get(saldoRef);
       double saldoActual = 0.0;
       if (saldoSnapshot.exists && saldoSnapshot.data() != null) {
-        final data = saldoSnapshot.data() as Map<String, dynamic>;
-        saldoActual = (data['saldoTotal'] ?? 0.0).toDouble();
+        saldoActual = (saldoSnapshot.data()!['saldoTotal'] ?? 0.0).toDouble();
       }
 
-      // Revertir el efecto del movimiento anterior
       double saldoRevertido;
       if (movimientoActual.tipo == 'ingreso') {
         saldoRevertido = saldoActual - movimientoActual.monto;
@@ -468,7 +480,6 @@ class FirebaseService {
         saldoRevertido = saldoActual + movimientoActual.monto;
       }
 
-      // Aplicar el nuevo movimiento
       double nuevoSaldo;
       if (tipo == 'ingreso') {
         nuevoSaldo = saldoRevertido + monto;
@@ -476,7 +487,6 @@ class FirebaseService {
         nuevoSaldo = saldoRevertido - monto;
       }
 
-      // Actualizar el movimiento
       final movimientoActualizado = MovimientoCaja(
         id: movimientoId,
         tipo: tipo,
@@ -489,31 +499,43 @@ class FirebaseService {
 
       transaction.update(movimientoRef, movimientoActualizado.toFirestore());
       transaction.set(saldoRef, {'saldoTotal': nuevoSaldo}, SetOptions(merge: true));
+
+      final log = LogCambio(
+        id: '',
+        tipoEntidad: 'caja',
+        entidadId: movimientoId,
+        tipoCambio: 'actualizar',
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+        fecha: DateTime.now(),
+        descripcion: 'Se actualizó un movimiento. Antes: ${movimientoActual.tipo} Bs. ${movimientoActual.monto}. Ahora: $tipo Bs. $monto: "$descripcion"',
+      );
+      final logRef = _db.collection('logs_caja').doc();
+      transaction.set(logRef, log.toFirestore());
     });
   }
 
-  Future<void> deleteMovimientoCaja(String movimientoId) {
+  Future<void> deleteMovimientoCaja({
+    required String movimientoId,
+    required String usuarioId,
+    required String usuarioNombre,
+  }) {
     final movimientoRef = _db.collection('movimientos_caja').doc(movimientoId);
     final saldoRef = _db.collection('caja_resumen').doc('saldo_actual');
 
     return _db.runTransaction((transaction) async {
-      // Obtener el movimiento a eliminar
       final movimientoSnapshot = await transaction.get(movimientoRef);
       if (!movimientoSnapshot.exists) {
         throw Exception('Movimiento no encontrado');
       }
-
       final movimiento = MovimientoCaja.fromFirestore(movimientoSnapshot);
 
-      // Obtener el saldo actual
       final saldoSnapshot = await transaction.get(saldoRef);
       double saldoActual = 0.0;
       if (saldoSnapshot.exists && saldoSnapshot.data() != null) {
-        final data = saldoSnapshot.data() as Map<String, dynamic>;
-        saldoActual = (data['saldoTotal'] ?? 0.0).toDouble();
+        saldoActual = (saldoSnapshot.data()!['saldoTotal'] ?? 0.0).toDouble();
       }
 
-      // Revertir el efecto del movimiento
       double nuevoSaldo;
       if (movimiento.tipo == 'ingreso') {
         nuevoSaldo = saldoActual - movimiento.monto;
@@ -523,35 +545,33 @@ class FirebaseService {
 
       transaction.delete(movimientoRef);
       transaction.set(saldoRef, {'saldoTotal': nuevoSaldo}, SetOptions(merge: true));
+
+      final log = LogCambio(
+        id: '',
+        tipoEntidad: 'caja',
+        entidadId: movimientoId,
+        tipoCambio: 'eliminar',
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+        fecha: DateTime.now(),
+        descripcion: 'Se eliminó el movimiento de ${movimiento.tipo} de Bs. ${movimiento.monto}: "${movimiento.descripcion}"',
+      );
+      final logRef = _db.collection('logs_caja').doc();
+      transaction.set(logRef, log.toFirestore());
     });
   }
 
-  // MÉTODOS PARA PARTICIPANTES ÚNICOS CON VENTAS
-  //----------------------------------------------------------------
-
-  Stream<List<Map<String, dynamic>>> getParticipantesUnicos() {
-    return _db.collectionGroup('ventas').snapshots().map((snapshot) {
-      final Set<String> idsUnicos = {};
-      final List<Map<String, dynamic>> participantes = [];
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final participanteId = data['participanteId'] as String?;
-        if (participanteId != null && !idsUnicos.contains(participanteId)) {
-          idsUnicos.add(participanteId);
-          participantes.add({
-            'id': participanteId,
-            'nombre': data['participanteNombre'] ?? 'Sin nombre',
-          });
-        }
-      }
-
-      return participantes;
-    });
-  }
 
   // MÉTODOS PARA LOGS DE CAMBIOS (AUDITORÍA)
   //----------------------------------------------------------------
+   Stream<List<LogCambio>> getHistorialCaja() {
+    return _db
+        .collection('logs_caja')
+        .orderBy('fecha', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => LogCambio.fromFirestore(doc)).toList());
+  }
 
   Future<void> addLogCambio(LogCambio log) {
     return _db.collection('logs_cambios').add(log.toFirestore());
@@ -637,5 +657,9 @@ class FirebaseService {
         .collection('archivos_adjuntos')
         .doc(archivoId)
         .delete();
+  }
+
+  Stream<List<Map<String, dynamic>>>? getParticipantesUnicos() {
+    return null;
   }
 }
