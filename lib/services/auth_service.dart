@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -11,25 +12,29 @@ final AuthService authService = AuthService();
 class AuthService with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   User? _user;
-  AuthStatus _status = AuthStatus.unknown;
-
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  // 1. Añadimos el estado de carga, inicializado en true.
+  bool _isLoading = true;
+  late StreamSubscription<User?> _authSubscription;
 
   AuthService() {
     // Escuchamos los cambios y actualizamos el estado.
-    _auth.authStateChanges().listen((User? user) {
-      _user = user;
-      if (user == null) {
-        _status = AuthStatus.unauthenticated;
-      } else {
-        _status = AuthStatus.authenticated;
-      }
-      notifyListeners();
-    });
+    _authSubscription = _auth.authStateChanges().listen(_onAuthStateChanged);
+  }
+
+  // 2. Método separado para manejar el cambio de estado.
+  void _onAuthStateChanged(User? user) {
+    _user = user;
+    // 3. Tan pronto como recibimos el primer evento, la carga inicial ha terminado.
+    if (_isLoading) {
+      _isLoading = false;
+    }
+    notifyListeners();
   }
 
   User? get user => _user;
-  AuthStatus get status => _status;
+
+  // 4. Getter para el estado de carga. El AuthWrapper lo usará.
+  bool get isLoading => _isLoading;
 
   Future<User?> signInWithEmailAndPassword(String email, String password) async {
     try {
@@ -73,5 +78,12 @@ class AuthService with ChangeNotifier {
         rethrow;
       }
     }
+  }
+
+  // Es buena práctica limpiar la suscripción cuando el servicio ya no se use.
+  @override
+  void dispose() {
+    _authSubscription.cancel();
+    super.dispose();
   }
 }

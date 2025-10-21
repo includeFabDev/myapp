@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:myapp/screens/register_screen.dart';
+import 'package:go_router/go_router.dart';
 import 'package:myapp/services/auth_service.dart';
 import 'package:myapp/services/connectivity_service.dart';
 import 'package:provider/provider.dart';
@@ -84,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (user != null) {
           await _saveEmail();
-          // La navegación es manejada por el `redirect` del router
+          // La navegación ahora la gestiona el AuthWrapper, no hace falta hacer nada aquí.
         } else {
           setState(() {
             _errorMessage = 'Email o contraseña incorrectos.';
@@ -102,12 +102,73 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _navigateToRegister() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) => const RegisterScreen()));
-  }
-  
+  // --- Implementación del diálogo de recuperación ---
   void _showPasswordResetDialog() {
-    // Implementar la lógica de recuperación de contraseña
+    final resetEmailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Recuperar Contraseña'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Ingresa tu email para enviarte un enlace de recuperación.'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: resetEmailController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                prefixIcon: Icon(Icons.email),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final email = resetEmailController.text.trim();
+              if (email.isNotEmpty) {
+                Navigator.of(context).pop(); // Cierra el diálogo
+                _sendPasswordResetEmail(email); // Envía el correo
+              }
+            },
+            child: const Text('Enviar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Método para enviar el correo de recuperación ---
+  Future<void> _sendPasswordResetEmail(String email) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    try {
+      await authService.sendPasswordResetEmail(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Enlace de recuperación enviado! Revisa tu correo.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: No se pudo enviar el correo. Verifica el email ingresado.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -208,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                 const SizedBox(height: 10),
                 TextButton(
-                  onPressed: _navigateToRegister,
+                   onPressed: () => context.go('/register'),
                   child: const Text('¿No tienes cuenta? Regístrate aquí'),
                 ),
               ],

@@ -4,6 +4,7 @@ import 'package:myapp/services/auth_service.dart';
 import 'package:myapp/services/connectivity_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:developer' as developer; // Importamos el logger
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -22,6 +23,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _errorMessage = '';
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
+
+  // --- Método de navegación a prueba de fallos ---
+  void _navigateToLogin(BuildContext context) {
+    // 1. "Prueba de Vida": Imprimimos en la consola para confirmar el toque.
+    developer.log('Intentando navegar a /login...', name: 'RegisterScreen');
+    
+    // 2. Usamos la forma más explícita y robusta de GoRouter.
+    GoRouter.of(context).go('/login');
+  }
 
   void _showOfflineDialog() {
     showDialog(
@@ -74,7 +84,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             );
             Future.delayed(const Duration(seconds: 1), () {
               if (mounted) {
-                context.go('/login');
+                _navigateToLogin(context);
               }
             });
           }
@@ -207,8 +217,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 10),
                            TextButton(
-                            onPressed: () => context.go('/login'),
                             child: const Text('¿Ya tienes cuenta? Inicia Sesión'),
+                            onPressed: () => _navigateToLogin(context),
                           ),
                         ],
                       ),
