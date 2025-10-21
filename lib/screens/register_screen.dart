@@ -1,7 +1,8 @@
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/services/auth_service.dart';
+import 'package:myapp/services/connectivity_service.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -12,7 +13,6 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final AuthService _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -23,48 +23,74 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
 
+  void _showOfflineDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sin conexión'),
+        content: const Text('No hay conexión a internet. El registro requiere una conexión activa.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _register() async {
+    final connectivityService = Provider.of<ConnectivityService>(context, listen: false);
+    if (connectivityService.status == ConnectivityStatus.offline) {
+      _showOfflineDialog();
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
         _errorMessage = '';
       });
-      final user = await _authService.registerWithEmailAndPassword(
-        _emailController.text,
-        _passwordController.text,
-      );
-      if (user != null) {
-        // Cerrar sesión inmediatamente después del registro para evitar auto-login
-        await _authService.signOut();
+      
+      try {
+        final authService = Provider.of<AuthService>(context, listen: false);
+        final user = await authService.registerWithEmailAndPassword(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+        );
 
-        // Registro exitoso - guardar email en preferencias
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('saved_email', _emailController.text.trim());
+        if (user != null) {
+          await authService.signOut();
 
-        // Mostrar mensaje de éxito y navegar al login
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('¡Registro exitoso! Ahora puedes iniciar sesión.'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
-            ),
-          );
-          // Usar GoRouter para navegar al login en lugar de Navigator.pop()
-          // Esto evita el error de stack vacío
-          Future.delayed(const Duration(seconds: 1), () {
-            if (mounted) {
-              context.go('/login');
-            }
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('saved_email', _emailController.text.trim());
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('¡Registro exitoso! Ahora puedes iniciar sesión.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            Future.delayed(const Duration(seconds: 1), () {
+              if (mounted) {
+                context.go('/login');
+              }
+            });
+          }
+        } else {
+           setState(() {
+            _errorMessage = 'No se pudo registrar. El email podría ya estar en uso.';
           });
         }
-      } else {
+      } catch (e) {
         setState(() {
-          _errorMessage = 'No se pudo registrar. El email podría ya estar en uso o la contraseña es muy débil.';
+          _errorMessage = 'Error: ${e.toString()}';
         });
-      }
-      if (mounted) {
-        setState(() => _isLoading = false);
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -180,8 +206,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context), // Vuelve a la pantalla de login
+                           TextButton(
+                            onPressed: () => context.go('/login'),
                             child: const Text('¿Ya tienes cuenta? Inicia Sesión'),
                           ),
                         ],

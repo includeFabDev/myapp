@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/models/movimiento_caja.dart';
 import 'package:myapp/services/auth_service.dart';
@@ -106,6 +105,7 @@ class CajaScreenState extends State<CajaScreen> {
     final user = Provider.of<AuthService>(context).user;
 
     return Scaffold(
+      
       body: user == null
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -119,14 +119,6 @@ class CajaScreenState extends State<CajaScreen> {
           : Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                FloatingActionButton.extended(
-                  onPressed: () => context.go('/caja/log'),
-                  label: const Text('Historial'),
-                  icon: const Icon(Icons.history),
-                  heroTag: 'historial_fab',
-                  backgroundColor: Colors.blue,
-                ),
-                const SizedBox(height: 10),
                 FloatingActionButton.extended(
                   onPressed: () => _showAddMovimientoDialog(tipo: 'ingreso', user: user),
                   label: const Text('Ingreso'),

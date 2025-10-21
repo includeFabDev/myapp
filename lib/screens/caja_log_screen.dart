@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../models/log_cambio.dart';
 import '../services/firebase_service.dart';
 
@@ -9,8 +10,14 @@ class CajaLogScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Historial de Caja'),
-        backgroundColor: Colors.teal,
+        // ¡La flecha que va DIRECTO a la Caja!
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          // Le decimos explícitamente a dónde ir, sin dejar lugar a dudas.
+          onPressed: () => context.go('/home'), 
+          tooltip: 'Volver a Caja',
+        ),
+        title: const Text('Historial de Movimiento en Caja'),
       ),
       body: StreamBuilder<List<LogCambio>>(
         stream: FirebaseService().getHistorialCaja(),

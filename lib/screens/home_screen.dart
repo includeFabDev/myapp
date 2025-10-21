@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:myapp/screens/bienvenida_screen.dart';
 import 'package:myapp/screens/caja_screen.dart';
 import 'package:myapp/widgets/app_drawer.dart';
@@ -20,7 +21,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   static const List<String> _titles = <String>[
     'Resumen de Actividades',
-    'Control de Caja',
+    'Caja',
   ];
 
   void _onItemTapped(int index) {
@@ -29,13 +30,24 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: AppDrawer(),
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
+        actions: [
+          // Mostramos el botón de historial solo si estamos en la pestaña de Caja.
+          if (_selectedIndex == 1)
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'Ver Historial de Caja',
+              onPressed: () {
+                // Navegamos a la pantalla de logs usando la ruta anidada.
+                context.go('/caja_log_screen');
+              },
+            ),
+        ],
       ),
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),
@@ -55,7 +67,6 @@ class HomeScreenState extends State<HomeScreen> {
         selectedItemColor: Theme.of(context).colorScheme.primary,
         onTap: _onItemTapped,
       ),
-
     );
   }
 }

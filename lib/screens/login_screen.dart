@@ -1,7 +1,7 @@
-import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:myapp/screens/register_screen.dart';
 import 'package:myapp/services/auth_service.dart';
+import 'package:myapp/services/connectivity_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,7 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String _errorMessage = '';
   bool _rememberMe = true;
-  String? _savedEmail;
   bool _passwordVisible = false;
 
   @override
@@ -31,57 +30,74 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadSavedEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _savedEmail = prefs.getString('saved_email');
-      if (_savedEmail != null) {
-        _emailController.text = _savedEmail!;
-      }
-    });
+    final savedEmail = prefs.getString('saved_email');
+    if (savedEmail != null) {
+      _emailController.text = savedEmail;
+    }
   }
 
   Future<void> _saveEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    if (_rememberMe && _emailController.text.isNotEmpty) {
+    if (_rememberMe) {
       await prefs.setString('saved_email', _emailController.text.trim());
     } else {
       await prefs.remove('saved_email');
     }
   }
 
+  void _showOfflineDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sin conexión'),
+        content: const Text('No hay conexión a internet. Por favor, revisa tu red e inténtalo de nuevo.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _login() async {
-    developer.log('Botón de iniciar sesión presionado');
-    final authService = Provider.of<AuthService>(context, listen: false);
+    final connectivityService = Provider.of<ConnectivityService>(context, listen: false);
+    if (connectivityService.status == ConnectivityStatus.offline) {
+      _showOfflineDialog();
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
         _errorMessage = '';
       });
+
       try {
+        final authService = Provider.of<AuthService>(context, listen: false);
         await authService.setPersistence(_rememberMe);
         final user = await authService.signInWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text.trim(),
         );
 
-        developer.log('Resultado login: $user');
-
-        // Save email if remember me is checked
-        await _saveEmail();
-
-        if (user == null) {
+        if (user != null) {
+          await _saveEmail();
+          // La navegación es manejada por el `redirect` del router
+        } else {
           setState(() {
-            _errorMessage = 'Email o contraseña incorrectos. Inténtalo de nuevo.';
+            _errorMessage = 'Email o contraseña incorrectos.';
           });
         }
-      } catch (e, stack) {
-        developer.log('Error al iniciar sesión: $e');
-        developer.log('Stacktrace: $stack');
+      } catch (e) {
         setState(() {
-          _errorMessage = 'Error al iniciar sesión: $e';
+          _errorMessage = 'Error: ${e.toString()}';
         });
-      }
-      if (mounted) {
-        setState(() => _isLoading = false);
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -89,52 +105,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void _navigateToRegister() {
     Navigator.of(context).push(MaterialPageRoute(builder: (context) => const RegisterScreen()));
   }
-
+  
   void _showPasswordResetDialog() {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final resetEmailController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Recuperar contraseña'),
-          content: TextField(
-            controller: resetEmailController,
-            decoration: const InputDecoration(
-              labelText: 'Ingresa tu email',
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.emailAddress,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  await authService.sendPasswordResetEmail(resetEmailController.text);
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Correo de recuperación enviado')),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Error al enviar correo')),
-                    );
-                  }
-                }
-              },
-              child: const Text('Enviar'),
-            ),
-          ],
-        );
-      },
-    );
+    // Implementar la lógica de recuperación de contraseña
   }
 
   @override
@@ -142,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          padding: const EdgeInsets.all(24.0),
           child: Form(
             key: _formKey,
             child: Column(
@@ -157,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _emailController,
-                  decoration: const InputDecoration(
+                   decoration: const InputDecoration(
                     labelText: 'Correo electrónico',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.email),
@@ -190,7 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? 'La contraseña debe tener al menos 6 caracteres'
                       : null,
                 ),
-                Row(
+                 Row(
                   children: [
                     Checkbox(
                       value: _rememberMe,

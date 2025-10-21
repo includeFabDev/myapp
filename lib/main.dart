@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myapp/firebase_options.dart';
 import 'package:myapp/router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
-import 'package:myapp/services/auth_service.dart'; // Importamos el servicio original
+import 'package:myapp/services/auth_service.dart' hide authService;
+import 'package:myapp/services/connectivity_service.dart';
+
+// Instancia global del servicio de conectividad
+final ConnectivityService connectivityService = ConnectivityService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,10 +20,18 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    // Usamos la instancia única de AuthService que creamos en router.dart
+    
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+
     runApp(
-      ChangeNotifierProvider<AuthService>.value(
-        value: authService, // Le pasamos la instancia existente
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthService>.value(value: authService),
+          ChangeNotifierProvider<ConnectivityService>.value(value: connectivityService),
+        ],
         child: const MyApp(),
       ),
     );

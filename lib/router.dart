@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/models/actividad.dart';
 import 'package:myapp/screens/activity_details_screen.dart';
+import 'package:myapp/screens/caja_log_screen.dart';
 import 'package:myapp/screens/home_screen.dart';
 import 'package:myapp/screens/inversiones_screen.dart';
 import 'package:myapp/screens/inversiones_selector_screen.dart';
@@ -99,6 +100,10 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/reportes_generales',
       builder: (context, state) => const ReportesGeneralesCajaScreen(),
+    ),
+     GoRoute(
+      path: '/caja_log_screen',
+      builder: (context, state) => const CajaLogScreen(),
     ),
   ],
 );
