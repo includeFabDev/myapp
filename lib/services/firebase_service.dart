@@ -662,8 +662,4 @@ class FirebaseService {
         .doc(archivoId)
         .delete();
   }
-
-  Stream<List<Map<String, dynamic>>>? getParticipantesUnicos() {
-    return null;
-  }
 }

@@ -18,9 +18,7 @@ class AppDrawer extends StatelessWidget {
               children: [
                 const CircleAvatar(
                   radius: 30,
-                  backgroundImage: AssetImage(
-                    'assets/default_avatar.png',
-                  ), // Placeholder image
+                  backgroundImage: AssetImage('assets/images/default_avatar.png'),
                 ),
                 const SizedBox(height: 10),
                 const Text(
@@ -70,6 +68,7 @@ class AppDrawer extends StatelessWidget {
               context.go('/reportes');
             },
           ),
+          const Divider(), 
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Cerrar Sesión'),
