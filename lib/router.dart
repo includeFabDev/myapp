@@ -9,33 +9,57 @@ import 'package:myapp/screens/inversiones_selector_screen.dart';
 import 'package:myapp/screens/reportes_generales_caja_screen.dart';
 import 'package:myapp/screens/reportes_selector_screen.dart';
 import 'package:myapp/screens/login_screen.dart';
-import 'package:myapp/screens/participantes_activos_screen.dart';
 import 'package:myapp/screens/register_screen.dart';
 import 'package:myapp/screens/reportes_screen.dart';
-import 'package:myapp/services/auth_service.dart'; 
-import 'package:myapp/widgets/auth_wrapper.dart'; // Importamos el Wrapper
+import 'package:myapp/services/auth_service.dart';
 
-// La instancia del servicio de autenticación sigue siendo necesaria.
+// 1. La instancia del servicio de autenticación.
 final AuthService authService = AuthService();
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-// --- Nueva configuración del Router ---
+// --- Configuración Definitiva del Router ---
 final GoRouter router = GoRouter(
   navigatorKey: _rootNavigatorKey,
-  // 1. La ruta inicial ahora es la raíz, que mostrará el AuthWrapper.
-  initialLocation: '/',
+  initialLocation: '/home', // Intentamos ir a /home primero
   
-  // 2. Ya NO necesitamos `redirect` ni `refreshListenable`. El Wrapper se encarga de todo.
+  // 2. El router ahora "escucha" los cambios en el AuthService.
+  // Cada vez que el usuario inicie o cierre sesión, el router se actualizará.
+  refreshListenable: authService,
+
+  // 3. La lógica de redirección, ahora sí, de forma segura.
+  redirect: (BuildContext context, GoRouterState state) {
+    final bool isLoggedIn = authService.user != null;
+    final bool isLoading = authService.isLoading;
+
+    // Mientras está cargando, no hacemos nada.
+    if (isLoading) {
+      return null; 
+    }
+
+    // Definimos las rutas que no necesitan autenticación.
+    final bool isPublicRoute = state.matchedLocation == '/login' || state.matchedLocation == '/register';
+
+    // Si el usuario no está logueado e intenta acceder a una ruta protegida, lo mandamos al login.
+    if (!isLoggedIn && !isPublicRoute) {
+      return '/login';
+    }
+
+    // Si el usuario ya está logueado e intenta ir al login/register, lo llevamos a home.
+    if (isLoggedIn && isPublicRoute) {
+      return '/home';
+    }
+
+    // En cualquier otro caso, dejamos que continúe.
+    return null;
+  },
 
   routes: [
-    // 3. La ruta raíz (/) ahora apunta a nuestro AuthWrapper.
-    // Él decidirá qué pantalla mostrar (Login o Home).
+    // 4. La ruta raíz (/) y /home ahora apuntan a la misma pantalla.
     GoRoute(
       path: '/',
-      builder: (context, state) => const AuthWrapper(),
+      builder: (context, state) => const HomeScreen(),
     ),
-    // 4. Mantenemos las rutas específicas para que `context.go()` siga funcionando.
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/register',
@@ -45,7 +69,6 @@ final GoRouter router = GoRouter(
       path: '/home',
       builder: (context, state) => const HomeScreen(),
       routes: [
-        // Las sub-rutas se mantienen igual.
         GoRoute(
           path: 'actividad/:id',
           builder: (context, state) {
@@ -55,7 +78,7 @@ final GoRouter router = GoRouter(
           },
         ),
          GoRoute(
-          path: 'caja/log', // Ruta para el historial de caja
+          path: 'caja/log', 
           builder: (context, state) => const CajaLogScreen(),
         ),
         GoRoute(
@@ -79,10 +102,6 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/actividades',
       builder: (context, state) => const HomeScreen(),
-    ),
-    GoRoute(
-      path: '/participantes_activos',
-      builder: (context, state) => const ParticipantesActivosScreen(),
     ),
     GoRoute(
       path: '/inversiones',

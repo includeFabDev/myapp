@@ -55,14 +55,6 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.people),
-            title: const Text('Participantes'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go('/participantes_activos');
-            },
-          ),
-          ListTile(
             leading: const Icon(Icons.attach_money),
             title: const Text('Inversiones'),
             onTap: () {
@@ -76,17 +68,6 @@ class AppDrawer extends StatelessWidget {
             onTap: () {
               Navigator.pop(context);
               context.go('/reportes');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('Configuración'),
-            onTap: () {
-              Navigator.pop(context);
-              // Placeholder for settings
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Próximamente')));
             },
           ),
           ListTile(

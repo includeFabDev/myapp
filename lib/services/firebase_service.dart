@@ -15,8 +15,12 @@ class FirebaseService {
   //----------------------------------------------------------------
 
   Stream<List<Actividad>> getActividades() {
-    return _db.collection('actividades').snapshots().map((snapshot) =>
-        snapshot.docs.map((doc) => Actividad.fromFirestore(doc)).toList());
+    return _db
+        .collection('actividades')
+        .orderBy('fecha', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Actividad.fromFirestore(doc)).toList());
   }
 
   Future<void> addActividad(Actividad actividad) {

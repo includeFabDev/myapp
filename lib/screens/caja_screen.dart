@@ -78,8 +78,22 @@ class CajaScreenState extends State<CajaScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (formKey.currentState!.validate()) {
+                  final monto = double.parse(montoController.text);
+
+                  if (tipo == 'egreso') {
+                    final saldoActual = await _firebaseService.getSaldoCajaStream().first;
+                    if (monto > saldoActual) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Fondos insuficientes. El egreso excede el saldo actual.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return; 
+                    }
+                  }
                   _firebaseService.addMovimientoCaja(
                     tipo: tipo,
                     monto: double.parse(montoController.text),

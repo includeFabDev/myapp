@@ -39,7 +39,7 @@ class _BienvenidaScreenState extends State<BienvenidaScreen> {
                 ),
                 TextField(
                   controller: precioController,
-                  decoration: const InputDecoration(labelText: "Precio por Choripán"),
+                  decoration: const InputDecoration(labelText: "Precio de Producto a Vender"),
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 20),
